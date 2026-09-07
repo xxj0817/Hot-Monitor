@@ -1,0 +1,366 @@
+@import "tailwindcss";
+
+/* ===== Hot-Monitor 主题令牌（情报终端 x Brutalism） ===== */
+@theme {
+  --font-mono: "Fira Code", ui-monospace, "Cascadia Code", Consolas, "Microsoft YaHei", monospace;
+  --font-sans: "Noto Sans SC", "Microsoft YaHei", ui-sans-serif, system-ui, sans-serif;
+
+  --color-void: #060a13;
+  --color-deck: #0a101f;
+  --color-panel: #0e1628;
+  --color-panel2: #131d35;
+  --color-line: #223052;
+  --color-line2: #18223840;
+  --color-ink: #d9e4f4;
+  --color-dim: #7d8fb0;
+  --color-faint: #46557a;
+
+  --color-signal: #2ee6a8;
+  --color-signal-dim: #0f6b4f;
+  --color-warn: #ffb020;
+  --color-alert: #ff5470;
+  --color-info: #42a7ff;
+  --color-vio: #a78bfa;
+}
+
+/* ---------- 基础 ---------- */
+html,
+body {
+  margin: 0;
+  background: var(--color-void);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+/* 背景：径向"雷达暗区" + 微弱网格 */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(1200px 600px at 75% -10%, rgba(46, 230, 168, 0.06), transparent 60%),
+    radial-gradient(900px 500px at 8% 110%, rgba(66, 167, 255, 0.05), transparent 60%),
+    var(--color-void);
+}
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(120, 150, 200, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(120, 150, 200, 0.035) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(1200px 800px at 50% 0%, #000 40%, transparent 90%);
+}
+
+::selection {
+  background: var(--color-signal);
+  color: #04110c;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #223052 transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: #223052;
+}
+
+a {
+  color: inherit;
+}
+
+/* ---------- 通用组件 ---------- */
+.panel {
+  background: linear-gradient(180deg, var(--color-panel), var(--color-deck));
+  border: 1px solid var(--color-line);
+  position: relative;
+}
+.panel-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--color-line);
+  padding: 8px 14px;
+  background: rgba(13, 20, 36, 0.7);
+}
+.brack {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+  color: var(--color-dim);
+}
+.brack b {
+  color: var(--color-signal);
+  font-weight: 600;
+}
+.brack .on {
+  color: var(--color-info);
+}
+
+.btn {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  border: 1px solid var(--color-line);
+  background: var(--color-panel2);
+  color: var(--color-ink);
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  text-transform: uppercase;
+  user-select: none;
+}
+.btn:hover {
+  border-color: var(--color-signal);
+  color: var(--color-signal);
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.btn.solid {
+  background: var(--color-signal);
+  border-color: var(--color-signal);
+  color: #04110c;
+  font-weight: 700;
+}
+.btn.solid:hover {
+  background: #63f7c5;
+  color: #04110c;
+}
+.btn.ghost-danger:hover {
+  border-color: var(--color-alert);
+  color: var(--color-alert);
+}
+.btn.small {
+  padding: 2px 8px;
+  font-size: 11px;
+}
+
+.inp {
+  font-family: var(--font-mono);
+  background: var(--color-void);
+  border: 1px solid var(--color-line);
+  color: var(--color-ink);
+  padding: 7px 10px;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s;
+  min-width: 0;
+}
+.inp:focus {
+  border-color: var(--color-signal);
+}
+.inp::placeholder {
+  color: var(--color-faint);
+}
+
+/* 状态灯 */
+.light {
+  width: 9px;
+  height: 9px;
+  border-radius: 0;
+  display: inline-block;
+  flex: none;
+  box-shadow: 0 0 8px currentColor;
+}
+.light.good {
+  background: var(--color-signal);
+  color: var(--color-signal);
+}
+.light.warn {
+  background: var(--color-warn);
+  color: var(--color-warn);
+}
+.light.bad {
+  background: var(--color-alert);
+  color: var(--color-alert);
+}
+.light.idle {
+  background: #31415f;
+  color: #31415f;
+  box-shadow: none;
+}
+@keyframes blinklight {
+  50% {
+    opacity: 0.25;
+  }
+}
+.light.blink {
+  animation: blinklight 1.6s infinite;
+}
+
+/* 等级徽章 */
+.lv {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 11px;
+  border: 1px solid currentColor;
+  padding: 0 5px;
+  letter-spacing: 0.1em;
+}
+.lv.S { color: var(--color-alert); }
+.lv.A { color: var(--color-warn); }
+.lv.B { color: var(--color-signal); }
+.lv.C { color: var(--color-info); }
+
+.tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--color-dim);
+  border: 1px solid var(--color-line);
+  padding: 0 5px;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+.tag.src-twitter { color: var(--color-info); }
+.tag.src-bing, .tag.src-duckduckgo { color: var(--color-dim); }
+.tag.src-mock { color: var(--color-vio); }
+
+/* ---------- 雷达扫描 Logo ---------- */
+@keyframes radar-sweep {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.radar-sweep {
+  transform-origin: center;
+  animation: radar-sweep 3.2s linear infinite;
+}
+
+/* ---------- 跑马灯 ---------- */
+@keyframes ticker {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+.ticker-track {
+  display: inline-flex;
+  white-space: nowrap;
+  animation: ticker 55s linear infinite;
+  will-change: transform;
+}
+.ticker-wrap:hover .ticker-track {
+  animation-play-state: paused;
+}
+
+/* ---------- 打字光标 ---------- */
+@keyframes caret {
+  50% {
+    opacity: 0;
+  }
+}
+.caret::after {
+  content: "_";
+  color: var(--color-signal);
+  animation: caret 1s steps(1) infinite;
+  font-weight: 700;
+}
+
+/* ---------- 裁剪角（粗野主义切角） ---------- */
+.cut-corner {
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+}
+
+/* ---------- 热力条 ---------- */
+.heatbar {
+  height: 4px;
+  background: #101a30;
+  position: relative;
+  overflow: hidden;
+}
+.heatbar > i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: linear-gradient(90deg, var(--color-signal-dim), var(--color-signal));
+  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.heatbar > i.warn {
+  background: linear-gradient(90deg, #9a6a00, var(--color-warn));
+}
+.heatbar > i.hot {
+  background: linear-gradient(90deg, #a5001f, var(--color-alert));
+}
+
+/* ---------- 新条目入场 ---------- */
+@keyframes risein {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.risein {
+  animation: risein 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ---------- Toast ---------- */
+@keyframes toastin {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.toast {
+  animation: toastin 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ---------- 抽屉 ---------- */
+@keyframes drawerin {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+.drawer {
+  animation: drawerin 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes fadein {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.fadein {
+  animation: fadein 0.2s ease both;
+}
+
+/* ---------- 可访问性 ---------- */
+:focus-visible {
+  outline: 2px solid var(--color-signal);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

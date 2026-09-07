@@ -1,0 +1,31 @@
+{
+  "name": "hot-monitor",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Hot-Monitor 鐑偣闆疯揪 - AI 鐑偣鑷姩鍙戠幇涓庣湡浼瘑鍒伐鍏??",
+  "scripts": {
+    "dev:server": "node --watch server/index.js",
+    "dev:client": "vite client",
+    "dev": "concurrently -k -n server,client -c blue,green \"npm:dev:server\" \"npm:dev:client\"",
+    "build": "vite build client",
+    "start": "node server/index.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^13.0.3",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@vitejs/plugin-react": "^6.1.1",
+    "concurrently": "^10.0.5",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "tailwindcss": "^4.3.3",
+    "vite": "^8.2.2"
+  },
+  "allowScripts": {
+    "better-sqlite3@13.0.3": true
+  }
+}
