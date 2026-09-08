@@ -126,6 +126,10 @@ export async function scanKeyword(kw) {
       notify('signal.new', `信号确认【${kw.name}】`, it.title, { keyword: kw.name, signal });
     }
   }
+  const bySrc = {};
+  for (const c of candidates) bySrc[c.source] = (bySrc[c.source] || 0) + 1;
+  const srcStr = Object.entries(bySrc).map(([s, n]) => `${s}=${n}`).join(' ');
+  console.log(`[watch] "${kw.name}": 采集 ${candidates.length} (${srcStr}) -> 新 ${fresh.length} -> 入库 ${added} / 确认 ${confirmed}`);
   updLastScan.run(now(), kw.id);
   return { keyword: kw.name, candidates: candidates.length, fresh: fresh.length, added, confirmed };
 }

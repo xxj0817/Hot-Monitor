@@ -9,11 +9,17 @@ let running = false;
 async function cycle(kind) {
   if (running) return;
   running = true;
+  const t0 = Date.now();
+  const tag = kind === 'watch' ? '关键词哨兵' : kind === 'trend' ? '热点雷达' : '关键词哨兵+热点雷达';
+  console.log(`[scheduler] ${tag} 开始 ${new Date().toISOString()}`);
   try {
     const jobs = [];
     if (!kind || kind === 'watch') jobs.push(scanAllKeywords().catch((e) => console.error('[sched] watcher', e.message)));
     if (!kind || kind === 'trend') jobs.push(refreshTrend().catch((e) => console.error('[sched] trend', e.message)));
     await Promise.all(jobs);
+    console.log(`[scheduler] ${tag} 完成 耗时=${Math.round((Date.now() - t0) / 1000)}s`);
+  } catch (e) {
+    console.error('[scheduler] 周期异常', e.message);
   } finally {
     running = false;
   }

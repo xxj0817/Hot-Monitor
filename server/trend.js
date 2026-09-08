@@ -30,6 +30,7 @@ export async function refreshTrend(manual = false) {
   const toggles = s.sourceToggles;
   const runInfo = insRun.run(name, now(), 'running');
   const runId = Number(runInfo.lastInsertRowid);
+  const t0 = Date.now();
 
   const queries = Array.isArray(scope.queries) && scope.queries.length ? scope.queries : ['AI 编程'];
   const raw = [];
@@ -122,6 +123,8 @@ export async function refreshTrend(manual = false) {
     }
   }
 
+  const elapsed = Math.round((Date.now() - t0) / 1000);
+  console.log(`[trend] "${name}": raw=${raw.length} 去重=${uniq.length} 提炼=${refined.length} 打分=${scored.length} 上榜=${top.length} 新增=${added} 耗时=${elapsed}s${manual ? ' (手动)' : ''}`);
   finRun.run(now(), 'done', top.length, `added=${added}${manual ? ' (手动刷新)' : ''}`, runId);
   if (added > 0) {
     notify('notice', '热点雷达更新', `领域「${name}」发现 ${added} 条新热点`, { scope: name, added });
