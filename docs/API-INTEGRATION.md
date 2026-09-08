@@ -7,7 +7,7 @@
 - 端点 `POST https://openrouter.ai/api/v1/chat/completions`（OpenAI 兼容），头 `Authorization: Bearer <KEY>`。
 - 可选追踪头 HTTP-Referer / X-OpenRouter-Title；原生 fetch 即可。
 - 模型按 slug；`GET /api/v1/models` 列全部（含 :free）。
-- 默认 minimax/minimax-m3:free（免费档实测可用）；付费模型需账号余额否则 402。
+- 默认 nvidia/nemotron-3-super-120b-a12b:free（免费档实测可用）；付费模型需账号余额否则 402。
 - Key 获取：openrouter.ai 注册 -> Keys。
 
 ## 2. twitterapi.io（Twitter/X）

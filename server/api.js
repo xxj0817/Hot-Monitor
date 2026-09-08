@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { db, now } from './db.js';
+import { db, now, listDomains, clearDomains } from './db.js';
 import { getSettings, saveSettings } from './config.js';
 import { addClient } from './bus.js';
 import { scanKeyword } from './watcher.js';
@@ -143,7 +143,10 @@ router.post('/notifications/read-all', (req, res) => {
 // ---------- 设置 ----------
 router.patch('/settings', (req, res) => {
   const patch = req.body || {};
-  const allowed = ['pollMinutes', 'model', 'lookbackHours', 'topTrends', 'sourceToggles', 'scope'];
+  const allowed = [
+    'pollMinutes', 'model', 'lookbackHours', 'topTrends',
+    'sourceToggles', 'scope', 'twitterMinEngagement', 'websearchEngines',
+  ];
   const clean = {};
   for (const k of allowed) {
     if (patch[k] !== undefined) clean[k] = patch[k];
@@ -151,6 +154,15 @@ router.patch('/settings', (req, res) => {
   if (clean.pollMinutes !== undefined) clean.pollMinutes = Math.max(1, Number(clean.pollMinutes) || 30);
   if (clean.lookbackHours !== undefined) clean.lookbackHours = Math.max(1, Number(clean.lookbackHours) || 24);
   if (clean.topTrends !== undefined) clean.topTrends = Math.max(3, Math.min(50, Number(clean.topTrends) || 12));
+  if (clean.twitterMinEngagement !== undefined) {
+    clean.twitterMinEngagement = Math.max(0, Number(clean.twitterMinEngagement) || 0);
+  }
+  if (clean.websearchEngines !== undefined) {
+    const known = ['bing', 'so360', 'baidu'];
+    clean.websearchEngines = (Array.isArray(clean.websearchEngines) ? clean.websearchEngines : [])
+      .filter((e) => known.includes(e));
+    if (!clean.websearchEngines.length) clean.websearchEngines = ['bing'];
+  }
   saveSettings(clean);
   // 周期变化需重启调度
   const changed = clean.pollMinutes !== undefined;
@@ -160,15 +172,28 @@ router.patch('/settings', (req, res) => {
 
 // ---------- 元信息 ----------
 router.get('/meta/sources', (req, res) => {
+  const s = getSettings();
   res.json({
     sources: sourceMeta.all(),
     config: {
       ai: aiConfigured(),
       twitter: twitter.isConfigured(),
-      model: getSettings().model,
-      toggles: getSettings().sourceToggles,
+      model: s.model,
+      toggles: s.sourceToggles,
+      websearchEngines: s.websearchEngines,
+      twitterMinEngagement: s.twitterMinEngagement,
     },
   });
+});
+
+// ---------- 低质域名自动灰名单 ----------
+router.get('/meta/domains', (req, res) => {
+  res.json(listDomains());
+});
+
+router.delete('/meta/domains', (req, res) => {
+  clearDomains();
+  res.json({ ok: true });
 });
 
 // ---------- 手动任务 ----------

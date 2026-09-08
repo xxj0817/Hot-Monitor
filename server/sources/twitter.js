@@ -2,7 +2,7 @@
 // 文档：https://docs.twitterapi.io/api-reference/endpoint/tweet_advanced_search
 // GET /twitter/tweet/advanced_search?queryType=Latest&query=<expr>  头: x-api-key
 // query 时间过滤用 since_time/until_time（Unix 秒），不支持 since:YYYY-MM-DD
-import { env } from '../config.js';
+import { env, getSettings } from '../config.js';
 import { norm, withinLookback } from './base.js';
 import { touchSource } from '../db.js';
 
@@ -23,6 +23,7 @@ function pick(o, keys, dflt) {
 function mapTweet(t) {
   const id = pick(t, ['id_str', 'id', 'rest_id'], '');
   const text = pick(t, ['text', 'full_text'], '');
+  const isReply = detectReply(t, text);
   const user = t.user || {};
   const username = pick(user, ['username', 'screen_name'], '');
   const createdAt = pick(t, ['created_at'], new Date().toISOString());
@@ -40,9 +41,20 @@ function mapTweet(t) {
       replyCount: Number(pick(counts, ['reply_count'], 0) || 0),
       viewCount: Number(pick(counts, ['view_count'], 0) || 0),
       avatar: pick(user, ['profile_image_url_https', 'profile_image_url'], ''),
+      isReply,
     },
   };
   return norm({ ...base, url: `https://x.com/${username}/status/${id}` });
+}
+
+// 字段级“是否为回复帖”检测：任何回复标记存在即视为回复
+function detectReply(t, text) {
+  if (!t) return false;
+  for (const k of ['in_reply_to_status_id', 'in_reply_to_status_id_str', 'in_reply_to_tweet_id', 'reply_to']) {
+    if (t[k] !== undefined && t[k] !== null && t[k] !== '') return true;
+  }
+  if (t.in_reply_to_user_id !== undefined && t.in_reply_to_user_id !== null) return true;
+  return false;
 }
 
 function parseDate(s) {
@@ -58,7 +70,7 @@ export async function searchTweets(queryExpr, lookbackHours = 24) {
     throw err;
   }
   const sinceTime = Math.floor(Date.now() / 1000) - LOOKBACK_S;
-  const expr = `${queryExpr} -is:retweet since_time:${sinceTime}`;
+  const expr = `${queryExpr} -is:retweet -is:reply since_time:${sinceTime}`;
   const url = `${BASE}/twitter/tweet/advanced_search?queryType=Latest&query=${encodeURIComponent(expr)}`;
   const res = await fetch(url, {
     headers: { 'x-api-key': env.twitterKey },
@@ -73,7 +85,16 @@ export async function searchTweets(queryExpr, lookbackHours = 24) {
     const msg = j && (j.message || j.error || JSON.stringify(j));
     throw new Error(`twitter resp: ${String(msg).slice(0, 200)}`);
   }
-  const items = j.tweets.map(mapTweet).filter(Boolean);
-  touchSource('twitter', { ok: true, count: items.length });
-  return items.filter((it) => withinLookback(it, lookbackHours));
+  // 质量过滤：字段级排除回复帖 -> 热度门槛（赞+转+评，可配置 twitterMinEngagement）
+  const minEngagement = Number(getSettings().twitterMinEngagement) || 0;
+  let rawItems = j.tweets.map(mapTweet).filter(Boolean);
+  rawItems = rawItems.filter((it) => !(it.extra && it.extra.isReply));
+  if (minEngagement > 0) {
+    rawItems = rawItems.filter((it) => {
+      const e = it.extra || {};
+      return (Number(e.likeCount) || 0) + (Number(e.retweetCount) || 0) + (Number(e.replyCount) || 0) >= minEngagement;
+    });
+  }
+  touchSource('twitter', { ok: true, count: rawItems.length });
+  return rawItems.filter((it) => withinLookback(it, lookbackHours));
 }

@@ -39,7 +39,7 @@ data/     hotmonitor.db + settings.json（git 忽略）
 
 ## 4. AI 编排（OpenRouter）
 
-- `POST https://openrouter.ai/api/v1/chat/completions`，Bearer Key；默认模型 minimax/minimax-m3:free。
+- `POST https://openrouter.ai/api/v1/chat/completions`，Bearer Key；默认模型 nvidia/nemotron-3-super-120b-a12b:free。
 - judge: {related, authentic, score, verdict(authentic/fake/unrelated/unverified), reason}
 - refine: 去重/提炼/可信度；rank: heat(0-100)+level(S/A/B/C)。
 - JSON 约束（response_format，失败自动去掉重试）；失败/无 Key -> 本地规则降级（标记 unverified，不误报"真"）。

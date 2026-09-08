@@ -3,8 +3,8 @@
 面向 AI 编程博主的**热点自动发现与真伪识别**工具：多信源采集 -> AI 判定/聚合 -> Web 情报台展示 + 实时提醒，并交付可复用的 Agent Skills。
 
 - 技术栈：Node + Express 5 + better-sqlite3 / React 19 + Vite + Tailwind CSS 4
-- AI：OpenRouter（OpenAI 兼容接口），默认免费模型 `minimax/minimax-m3:free`（账号零充值可用，可换更强模型）
-- 信源：Bing + DuckDuckGo 网页搜索（无 API 控频爬虫）、Twitter/X（twitterapi.io，可选）、演示源
+- AI：OpenRouter（OpenAI 兼容接口），默认免费模型 `nvidia/nemotron-3-super-120b-a12b:free`（账号零充值可用，可换更强模型）
+- 信源：Bing + 360 + Baidu(best-effort) 网页搜索（无 API 控频爬虫）、Twitter/X（twitterapi.io，可选）、演示源
 - 文档：`docs/`（REQUIREMENTS / DESIGN / API-INTEGRATION / SKILLS-GUIDE）
 
 ## 快速开始

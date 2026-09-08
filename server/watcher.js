@@ -1,10 +1,11 @@
 // 关键词哨兵：对启用关键词扫描多信源 -> AI 判定真伪/相关 -> 入库 -> 确认后通知
-import { db, now, touchSource } from './db.js';
+import { db, now, touchSource, getDomainFakeHits, bumpDomainFake, GREYLIST_HITS } from './db.js';
 import { getSettings } from './config.js';
 import { judge } from './ai.js';
 import { notify } from './notify.js';
 import { broadcast } from './bus.js';
 import { norm } from './sources/base.js';
+import { corroborate, normUrl } from './sources/corroborate.js';
 import * as mockSource from './sources/mock.js';
 import * as websearch from './sources/websearch.js';
 import * as twitter from './sources/twitter.js';
@@ -43,15 +44,20 @@ export async function scanKeyword(kw) {
     } catch (e) { /* ignore */ }
   }
 
-  // 批次内去重 + 过滤历史已见 URL
+  // 跨源交叉印证（extra.engineCount/corroborated）-> 归一化去重 -> 过滤历史已见/低质域名
+  corroborate(candidates);
   const seenInBatch = new Set();
   const fresh = [];
   for (const c of candidates) {
     const it = norm(c);
     if (!it) continue;
-    if (seenInBatch.has(it.url)) continue;
-    seenInBatch.add(it.url);
+    const key = normUrl(it.url);
+    if (seenInBatch.has(key)) continue;
+    seenInBatch.add(key);
     if (hasUrl.get(kw.id, it.url)) continue;
+    // 低质域名（累计 >=2 次判假）且无多源交叉印证 -> 跳过
+    const corroborated = !!(it.extra && it.extra.corroborated);
+    if (!corroborated && getDomainFakeHits(it.url) >= GREYLIST_HITS) continue;
     fresh.push(it);
   }
 
@@ -59,6 +65,9 @@ export async function scanKeyword(kw) {
   let confirmed = 0;
   for (const it of fresh) {
     const j = await judge(it, kw.name);
+    // AI 判为假：给来源域名累计一次灰名单记录
+    if (j.authentic === 0) bumpDomainFake(it.url);
+    else if (j.authentic === 1) bumpDomainFake(it.url, true);
     let id = null;
     try {
       const info = insertSignal.run({

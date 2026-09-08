@@ -64,8 +64,20 @@ export function VerdictBadge({ sig, showLabel }) {
   return <span className={`vchip ${v.t}`} title={sig.reason || ''}>{label || v.label}</span>;
 }
 
+// 来源名 -> 展示名/样式族
+const SRC_NAME = {
+  bing: { label: 'BING', cls: 'src-bing' },
+  so360: { label: '360', cls: 'src-360' },
+  baidu: { label: 'BAIDU', cls: 'src-baidu' },
+  duckduckgo: { label: 'DDG', cls: 'src-duckduckgo' },
+  twitter: { label: 'X', cls: 'src-twitter' },
+  mock: { label: 'DEMO', cls: 'src-mock' },
+};
+
 export function SourceTag({ source }) {
-  return <span className={`src src-${source || 'unknown'}`}>{source || 'unknown'}</span>;
+  const s = String(source || 'unknown').toLowerCase();
+  const m = SRC_NAME[s] || { label: s, cls: 'src-unknown' };
+  return <span className={`src ${m.cls}`}>{m.label}</span>;
 }
 
 export function LevelBadge({ level }) {

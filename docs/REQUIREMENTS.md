@@ -43,7 +43,7 @@
 ## 4. 技术需求（已确认）
 
 - 前端 React + Vite + Tailwind CSS；后端 Node.js + Express；存储 SQLite（better-sqlite3）。
-- AI：OpenRouter（OpenAI 兼容），模型可配置；默认免费模型 minimax/minimax-m3:free。
+- AI：OpenRouter（OpenAI 兼容），模型可配置；默认免费模型 nvidia/nemotron-3-super-120b-a12b:free。
 - 本机常驻运行；先完成网页版并确保可用，再开发 Agent Skills。
 
 ## 5. 非功能需求

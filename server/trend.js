@@ -1,10 +1,11 @@
-// 热点雷达：领域多查询 -> 多信源采集 -> AI 去重/提炼/热度分级 -> 热点榜
-import { db, now } from './db.js';
+// 热点雷达：领域多查询 -> 多信源采集 -> 交叉印证 -> AI 去重/提炼/热度分级 -> 热点榜
+import { db, now, getDomainFakeHits, GREYLIST_HITS } from './db.js';
 import { getSettings } from './config.js';
 import { refine, rank } from './ai.js';
 import { notify } from './notify.js';
 import { broadcast } from './bus.js';
 import { norm } from './sources/base.js';
+import { corroborate, normUrl } from './sources/corroborate.js';
 import * as mockSource from './sources/mock.js';
 import * as websearch from './sources/websearch.js';
 import * as twitter from './sources/twitter.js';
@@ -65,13 +66,18 @@ export async function refreshTrend(manual = false) {
     }
   }
 
-  // 去重 -> 提炼 -> 打分
+  // 跨源交叉印证（extra.engineCount/corroborated）-> 归一化去重 -> 低质域名过滤
+  corroborate(raw);
   const seen = new Set();
   const uniq = [];
   for (const c of raw) {
     const it = norm(c);
-    if (!it || seen.has(it.url)) continue;
-    seen.add(it.url);
+    if (!it) continue;
+    const key = normUrl(it.url);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    // 低质域名（累计 >=2 次判假）且无多源交叉印证 -> 跳过
+    if (!(it.extra && it.extra.corroborated) && getDomainFakeHits(it.url) >= GREYLIST_HITS) continue;
     it.extra = { ...(it.extra || {}), kwHits: kwHits.get(it.url) || 0 };
     uniq.push(it);
   }

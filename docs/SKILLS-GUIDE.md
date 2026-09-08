@@ -35,7 +35,7 @@ skills/hot-monitor/
 ## 4. Key 注入
 
 - `.env`（脚本自动向上查找）或环境变量 `OPENROUTER_API_KEY`。
-- 默认模型 minimax/minimax-m3:free，可用 `HOT_MONITOR_MODEL` 覆盖。
+- 默认模型 nvidia/nemotron-3-super-120b-a12b:free，可用 `HOT_MONITOR_MODEL` 覆盖。
 - `TWITTER_API_KEY`（twitterapi.io）可选。
 
 ## 5. 已验证（实测）

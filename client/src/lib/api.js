@@ -36,6 +36,8 @@ export const api = {
   runWatch: () => req('POST', '/jobs/watch'),
   runTrend: () => req('POST', '/jobs/trend'),
   metaSources: () => req('GET', '/meta/sources'),
+  domains: () => req('GET', '/meta/domains'),
+  clearDomains: () => req('DELETE', '/meta/domains'),
 };
 
 // 订阅 SSE 事件：返回取消函数

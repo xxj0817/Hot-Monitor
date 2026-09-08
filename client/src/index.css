@@ -153,6 +153,9 @@ a { color: inherit; }
 .src { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em; padding: 1px 6px; border-radius: 6px; text-transform: uppercase; white-space: nowrap; }
 .src-twitter { color: #7dd3fc; background: rgba(56, 189, 248, 0.10); }
 .src-bing, .src-duckduckgo { color: #a5b4fc; background: rgba(139, 92, 246, 0.10); }
+.src-360 { color: #6ee7b7; background: rgba(52, 211, 153, 0.12); }
+.src-baidu { color: #fca5a5; background: rgba(244, 63, 94, 0.12); }
+.src-unknown { color: #8b93bd; background: rgba(90, 103, 153, 0.12); }
 .src-mock { color: #c4b5fd; background: rgba(167, 139, 250, 0.10); }
 .src-web { color: #a5b4fc; background: rgba(139, 92, 246, 0.10); }
 

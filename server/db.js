@@ -72,6 +72,13 @@ CREATE TABLE IF NOT EXISTS source_meta(
   last_run_at TEXT,
   last_count INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS domain_meta(
+  domain TEXT PRIMARY KEY,
+  fake_hits INTEGER NOT NULL DEFAULT 0,
+  confirmed_hits INTEGER NOT NULL DEFAULT 0,
+  first_hit_at TEXT,
+  last_hit_at TEXT
+);
 `);
 
 export const now = () => new Date().toISOString();
@@ -119,4 +126,48 @@ export function touchSource(name, { ok, count, error }) {
        last_ok=excluded.last_ok, last_error=excluded.last_error,
        last_run_at=excluded.last_run_at, last_count=excluded.last_count`
   ).run(name, ok ? now() : null, error ? String(error).slice(0, 300) : null, now(), count || 0);
+}
+
+// ---------- 低质域名自动灰名单 ----------
+function hostOf(url) {
+  try {
+    return String(new URL(url).hostname).replace(/^www\./, '').toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+// 累计一次“AI 判定为假”记录到来源域名；authentic=true 时累计可信记录
+export function bumpDomainFake(url, confirmed = false) {
+  const host = hostOf(url);
+  if (!host) return 0;
+  db.prepare(
+    `INSERT INTO domain_meta(domain,fake_hits,confirmed_hits,first_hit_at,last_hit_at)
+     VALUES(?,?,?,?,?)
+     ON CONFLICT(domain) DO UPDATE SET
+       fake_hits=domain_meta.fake_hits+excluded.fake_hits,
+       confirmed_hits=domain_meta.confirmed_hits+excluded.confirmed_hits,
+       last_hit_at=excluded.last_hit_at`
+  ).run(host, confirmed ? 0 : 1, confirmed ? 1 : 0, now(), now());
+  return getDomainFakeHits(url);
+}
+
+// 读取某域名灰名单命中数（>= GREYLIST_HITS 即视为低质域名）
+export function getDomainFakeHits(url) {
+  const host = hostOf(url);
+  if (!host) return 0;
+  const row = db.prepare('SELECT fake_hits FROM domain_meta WHERE domain=?').get(host);
+  return row ? Number(row.fake_hits) || 0 : 0;
+}
+
+export const GREYLIST_HITS = 2;
+
+export function listDomains() {
+  return db
+    .prepare('SELECT * FROM domain_meta ORDER BY fake_hits DESC, last_hit_at DESC')
+    .all();
+}
+
+export function clearDomains() {
+  db.prepare('DELETE FROM domain_meta').run();
 }

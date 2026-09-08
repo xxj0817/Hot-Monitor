@@ -19,10 +19,14 @@ export const env = {
 const DEFAULTS = {
   pollMinutes: 30,
   // 默认免费模型：账号无余额也可用。充值后可在 UI/设置中切换为更强模型。
-  model: 'minimax/minimax-m3:free',
+  model: 'nvidia/nemotron-3-super-120b-a12b:free',
   lookbackHours: 24,
   topTrends: 12,
   sourceToggles: { websearch: true, twitter: true, mock: true },
+  // 网页搜索启用引擎（bing=必应, so360=360搜索, baidu=百度尽力而为）
+  websearchEngines: ['bing', 'so360', 'baidu'],
+  // Twitter/X 收录最低热度门槛：赞+转+评 >= 该值才收录（排除回复帖）
+  twitterMinEngagement: 100,
   scope: {
     name: 'AI 编程',
     queries: ['AI 编程', '大模型', 'llm', 'coding agent', 'ai programming'],

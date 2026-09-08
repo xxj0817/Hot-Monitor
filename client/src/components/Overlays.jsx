@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Icon } from './misc.jsx';
-import { fmtTime } from '../lib/api.js';
+import { api, fmtTime } from '../lib/api.js';
 import { cn } from './ui/aceternity.jsx';
 
 /* ---------------- Toast 容器 ---------------- */
@@ -104,22 +104,31 @@ export function NotifDrawer({ open, notifications, unread, onClose, onRead, onRe
 }
 
 /* ---------------- 设置弹窗 ---------------- */
+const ENG_OPTIONS = [['bing', '必应 Bing'], ['so360', '360 搜索'], ['baidu', '百度(尽力)']];
+
 export function SettingsModal({ open, settings, health, onClose, onSave }) {
   const [form, setForm] = useState(null);
+  const [domains, setDomains] = useState([]);
 
   useEffect(() => {
     if (open && settings) {
+      const engs = settings.websearchEngines || ['bing', 'so360', 'baidu'];
       setForm({
         pollMinutes: settings.pollMinutes,
         model: settings.model,
         lookbackHours: settings.lookbackHours,
         topTrends: settings.topTrends,
+        twitterMinEngagement: settings.twitterMinEngagement ?? 100,
         scopeName: settings.scope?.name || '',
         queries: (settings.scope?.queries || []).join('\n'),
         websearch: settings.sourceToggles?.websearch !== false,
         twitter: settings.sourceToggles?.twitter !== false,
         mock: settings.sourceToggles?.mock !== false,
+        eng_bing: engs.includes('bing'),
+        eng_so360: engs.includes('so360'),
+        eng_baidu: engs.includes('baidu'),
       });
+      api.domains().then(setDomains).catch(() => setDomains([]));
     }
   }, [open, settings]);
 
@@ -129,15 +138,24 @@ export function SettingsModal({ open, settings, health, onClose, onSave }) {
   function submit() {
     onSave({
       pollMinutes: Number(form.pollMinutes) || 30,
-      model: String(form.model).trim() || 'minimax/minimax-m3:free',
+      model: String(form.model).trim() || 'nvidia/nemotron-3-super-120b-a12b:free',
       lookbackHours: Number(form.lookbackHours) || 24,
       topTrends: Number(form.topTrends) || 12,
+      twitterMinEngagement: Number(form.twitterMinEngagement) || 0,
+      websearchEngines: ['bing', 'so360', 'baidu'].filter((k) => form['eng_' + k]),
       scope: {
         name: String(form.scopeName).trim() || 'AI 编程',
         queries: String(form.queries).split(/\r?\n/).map((s) => s.trim()).filter(Boolean),
       },
       sourceToggles: { websearch: form.websearch, twitter: form.twitter, mock: form.mock },
     });
+  }
+
+  async function clearDomains() {
+    try {
+      await api.clearDomains();
+      setDomains([]);
+    } catch { /* ignore */ }
   }
 
   const F = ({ label, hint, children }) => (
@@ -177,9 +195,28 @@ export function SettingsModal({ open, settings, health, onClose, onSave }) {
             <F label="热点榜条数"><input className="inp w-full" type="number" min="3" max="50" value={form.topTrends} onChange={(e) => set('topTrends', e.target.value)} /></F>
           </div>
 
-          <F label="OpenRouter 模型" hint="默认免费档 minimax/minimax-m3:free 零充值可用；充值后可换更强模型">
+          <F label="OpenRouter 模型" hint="默认免费档 nvidia/nemotron-3-super-120b 零充值可用；充值后可换更强模型">
             <input className="inp w-full" value={form.model} onChange={(e) => set('model', e.target.value)} />
           </F>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <F label="X 推文最低热度" hint="赞+转+评 之和 >= 该值才收录；回复帖一律排除。设为 0 表示不限">
+              <input className="inp w-full" type="number" min="0" value={form.twitterMinEngagement}
+                onChange={(e) => set('twitterMinEngagement', e.target.value)} />
+            </F>
+            <div>
+              <span className="mb-1.5 block font-mono text-[11px] font-bold tracking-wider text-dim">网页搜索引擎</span>
+              <div className="flex flex-wrap items-center gap-4 font-mono text-[11px] text-ink">
+                {ENG_OPTIONS.map(([k, label]) => (
+                  <label key={k} className="flex cursor-pointer items-center gap-2">
+                    <input type="checkbox" checked={form['eng_' + k]} onChange={(e) => set('eng_' + k, e.target.checked)}
+                      className="h-4 w-4 rounded accent-[#8b5cf6]" />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <F label="领域名称"><input className="inp w-full" value={form.scopeName} onChange={(e) => set('scopeName', e.target.value)} maxLength={20} /></F>
@@ -200,6 +237,29 @@ export function SettingsModal({ open, settings, health, onClose, onSave }) {
           <F label="领域检索词（每行一个）" hint="多词扩大采集面，自动用于网页搜索与 X 推文">
             <textarea className="inp h-28 w-full resize-y leading-relaxed" value={form.queries} onChange={(e) => set('queries', e.target.value)} />
           </F>
+
+          <div className="rounded-xl border border-line-soft bg-void/50 p-3.5">
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-[11px] font-bold tracking-wider text-dim">低质域名灰名单(自动)</span>
+              <span className="ml-auto font-mono text-[10px] text-faint">AI 累计判定可疑 &ge;2 次且无多源印证即自动拦截</span>
+              {domains.length > 0 && (
+                <button className="btn small" onClick={clearDomains} aria-label="清空灰名单">清空</button>
+              )}
+            </div>
+            {domains.length === 0 ? (
+              <p className="mt-2 font-mono text-[10.5px] text-faint">暂无灰名单记录 · AI 判定可疑的内容会自动纳入</p>
+            ) : (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {domains.slice(0, 20).map((d) => (
+                  <span key={d.domain}
+                    className="rounded-md border border-rose/25 bg-rose/[0.07] px-2 py-0.5 font-mono text-[10px] text-rose"
+                    title={`判定可疑 ${d.fake_hits} 次 · 已确认 ${d.confirmed_hits} 次`}>
+                    {d.domain} <b className="opacity-80">x{d.fake_hits}</b>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
 
           <div className="rounded-xl border border-line-soft bg-void/50 px-3.5 py-2.5 font-mono text-[10px] leading-relaxed text-faint">
             API Key 存于根目录 .env（OPENROUTER_API_KEY / TWITTER_API_KEY）；缺 Key 时 AI 自动降级本地初判并标注「待核验」。

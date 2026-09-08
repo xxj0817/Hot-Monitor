@@ -3,8 +3,8 @@ name: hot-monitor
 description: >-
   AI 热点监控与发现技能。当用户想要监控某个关键词/产品的动态、第一时间了解某
   领域（如 AI 编程、大模型）的最新热点、识别资讯真伪（过滤标题党/假消息/营销
-  号）时使用。自动执行：多信源采集（Bing/DuckDuckGo 网页搜索 + 可选 Twitter/X
-  高级搜索）-> OpenRouter AI 判定相关性与真实性 -> 输出结构化热点/信号。
+  号）时使用。自动执行：多信源采集（Bing+360搜索+百度 网页搜索 + 可选 Twitter/X
+  高级搜索，跨引擎交叉印证）-> OpenRouter AI 判定相关性与真实性 -> 输出结构化热点/信号。
 ---
 
 # hot-monitor：AI 热点雷达技能
@@ -19,8 +19,9 @@ description: >-
 - 需要 Node.js 18+（建议 20+），脚本无第三方依赖（仅用内置 fetch）。
 - OpenRouter Key（可选，但强烈建议）：项目 `.env` 或环境变量 `OPENROUTER_API_KEY`。
   - 无 Key 时自动进入离线演示模式（结果带 `mode: "mock"` 与演示数据）。
-  - 模型：默认 `minimax/minimax-m3:free`（免费可用），可用 `HOT_MONITOR_MODEL` 覆盖。
+  - 模型：默认 `nvidia/nemotron-3-super-120b-a12b:free`（免费可用），可用 `HOT_MONITOR_MODEL` 覆盖。
 - Twitter/X（可选）：`.env` 的 `TWITTER_API_KEY`（twitterapi.io），无则自动跳过 Twitter 信源。
+  - Twitter 已自动排除回复帖，且要求 赞+转+评 >= `HOT_MONITOR_MIN_ENG`（默认 100）才收录，可设 0 关闭。
 - 注意：脚本含中文，需以 UTF-8 保存/运行（Windows 下勿用 GBK）。
 
 ## 使用方式
@@ -42,8 +43,9 @@ node skills/hot-monitor/monitor.mjs keyword "Claude" --hours 24 --limit 8 --json
 | --limit N | 最多判定 N 条（控制 AI 成本） | 8 |
 | --json | 输出 JSON（推荐机器解析） | 关 |
 | --mock | 强制离线演示模式 | 自动 |
+| --min-eng N | Twitter 收录最低互动（赞+转+评），0=不限 | 100 |
 
-每条结果含 AI 判定字段：`verdict`（authentic 真实可信 / fake 假消息或营销 / unrelated 无关蹭词 / unverified 无法验证）、`related`、`authentic`、`score`、`reason`（一句话理由）。
+每条结果含 AI 判定字段：`verdict`（authentic 真实可信 / fake 假消息或营销 / unrelated 无关蹭词 / unverified 无法验证）、`related`、`authentic`、`score`、`reason`（一句话理由），以及跨引擎印证 `engineCount`（被几个独立信源同时报道）。
 
 **AI 如何解读**：只有 `verdict === "authentic"`（或 `demo`）的条目才应告知用户「确认是真消息」；`fake` 明确提醒用户是假/营销内容；`unrelated` 是标题党蹭词；`unverified` 只能说「有相关讨论，但真实性未能确认」。不要擅自把 unverified 当真实发布。
 
@@ -53,7 +55,7 @@ node skills/hot-monitor/monitor.mjs keyword "Claude" --hours 24 --limit 8 --json
 node skills/hot-monitor/monitor.mjs trend "AI 编程" --queries "AI 编程,大模型,coding agent,ai programming" --limit 10 --json
 ```
 
-参数：`trend <领域名>`、`--queries "词1,词2,..."`（中英文检索词，逗号分隔，可省略）、`--limit`、`--hours`、`--json`。
+参数：`trend <领域名>`、`--queries "词1,词2,..."`（中英文检索词，逗号分隔，可省略）、`--limit`、`--hours`、`--min-eng`、`--json`。
 
 返回按 `heat`（0-100）降序的榜单，含 `level`（S/A/B/C）、`title`、`url`、`source`、`summary`。
 
@@ -65,7 +67,7 @@ node skills/hot-monitor/monitor.mjs trend "AI 编程" --queries "AI 编程,大�
   "action": "keyword",
   "keyword": "Claude",
   "mode": "openrouter",
-  "model": "minimax/minimax-m3:free",
+  "model": "nvidia/nemotron-3-super-120b-a12b:free",
   "count": 6,
   "items": [
     {
