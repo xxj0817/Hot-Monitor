@@ -226,7 +226,7 @@ export default function App() {
             <div>
               <p className="mb-1 text-[9px] font-bold tracking-[0.2em] text-faint">信源开关</p>
               <div className="mt-1 flex flex-wrap gap-1.5">
-                {[['websearch', '网页搜索', toggles.websearch], ['twitter', 'X 推文', toggles.twitter], ['mock', '演示源', toggles.mock]].map(([k, label, on]) => (
+                {[['websearch', '网页搜索', toggles.websearch], ['twitter', 'X 推文', toggles.twitter], ['bilibili', 'B站', toggles.bilibili], ['mock', '演示源', toggles.mock]].map(([k, label, on]) => (
                   <span key={k} className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] ${on ? 'border-vio/30 bg-vio/[0.07] text-vio' : 'border-line text-faint'}`}>
                     <span className={`dot ${on ? 'vio' : 'idle'}`} style={{ width: 6, height: 6 }} />{label}
                   </span>

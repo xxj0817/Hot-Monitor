@@ -4,7 +4,7 @@
 
 - 技术栈：Node + Express 5 + better-sqlite3 / React 19 + Vite + Tailwind CSS 4
 - AI：OpenRouter（OpenAI 兼容接口），默认免费模型 `nvidia/nemotron-3-super-120b-a12b:free`（账号零充值可用，可换更强模型）
-- 信源：Bing + 360 + Baidu(best-effort) 网页搜索（无 API 控频爬虫）、Twitter/X（twitterapi.io，可选）、演示源
+- 信源：网页搜索多引擎 Bing + 360搜索 + 百度(best-effort)（无 API 控频爬虫，多源交叉印证）、B站视频（无 Key，含 UP 主/博主/官方账号监控）、Twitter/X（twitterapi.io，去回复 + 热度门槛，可选）、演示源
 - 文档：`docs/`（REQUIREMENTS / DESIGN / API-INTEGRATION / SKILLS-GUIDE）
 
 ## 快速开始

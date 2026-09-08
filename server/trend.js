@@ -9,6 +9,7 @@ import { corroborate, normUrl } from './sources/corroborate.js';
 import * as mockSource from './sources/mock.js';
 import * as websearch from './sources/websearch.js';
 import * as twitter from './sources/twitter.js';
+import * as bilibili from './sources/bilibili.js';
 
 const upsertTrend = db.prepare(
   `INSERT INTO trends(scope,title,url,source,summary,heat,level,credible,first_seen,updated_at)
@@ -46,6 +47,20 @@ export async function refreshTrend(manual = false) {
     for (const q of queries.slice(0, 3)) {
       try {
         raw.push(...(await twitter.searchTweets(`"${q}"`, lookback)));
+      } catch (e) { /* 已记录 */ }
+    }
+  }
+  // B站：检索词若是博主/官方/账号则直接抓账号，否则关键词视频搜索（无 Key）
+  if (toggles.bilibili) {
+    for (const q of queries.slice(0, 5)) {
+      try {
+        if (bilibili.isAccountKeyword(q)) {
+          const { account, items } = await bilibili.collectAccount(q, lookback);
+          if (account && items.length) raw.push(...items);
+          else if (!account) raw.push(...(await bilibili.searchVideos(q, lookback)));
+        } else {
+          raw.push(...(await bilibili.searchVideos(q, lookback)));
+        }
       } catch (e) { /* 已记录 */ }
     }
   }

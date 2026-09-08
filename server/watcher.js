@@ -9,6 +9,7 @@ import { corroborate, normUrl } from './sources/corroborate.js';
 import * as mockSource from './sources/mock.js';
 import * as websearch from './sources/websearch.js';
 import * as twitter from './sources/twitter.js';
+import * as bilibili from './sources/bilibili.js';
 
 const insertSignal = db.prepare(
   `INSERT INTO signals(keyword_id,title,url,source,summary,author,score,related,authentic,verdict,reason,seen_at)
@@ -36,6 +37,20 @@ export async function scanKeyword(kw) {
     } catch (e) {
       // 缺 key / 失败：记录即可，不阻断流程
       touchSource('twitter', { ok: false, count: 0, error: e.message });
+    }
+  }
+  // B站：博主/官方/账号型关键词直接抓该账号，其余走关键词视频搜索（无 Key）
+  if (toggles.bilibili) {
+    try {
+      if (bilibili.isAccountKeyword(kw.name)) {
+        const { account, items } = await bilibili.collectAccount(kw.name, lookback);
+        if (account && items.length) candidates.push(...items);
+        else if (!account) candidates.push(...(await bilibili.searchVideos(kw.name, lookback)));
+      } else {
+        candidates.push(...(await bilibili.searchVideos(kw.name, lookback)));
+      }
+    } catch (e) {
+      touchSource('bilibili', { ok: false, count: 0, error: e.message });
     }
   }
   if (toggles.mock) {

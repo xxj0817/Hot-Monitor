@@ -3,7 +3,7 @@ import { corroborate, normUrl, normTitle } from '../server/sources/corroborate.j
 import { listDomains, clearDomains, bumpDomainFake, getDomainFakeHits, GREYLIST_HITS } from '../server/db.js';
 
 console.log('normUrl  :', normUrl('https://WWW.Example.com/a?utm_source=x&b=2#frag'));
-console.log('normTitle:', normTitle('Hello, AI ±à³Ì! 123'));
+console.log('normTitle:', normTitle('Hello, AI ç¼–ç¨‹! 123'));
 
 const items = [
   { title: 'Alpha news', url: 'https://x.com/a', source: 'bing' },

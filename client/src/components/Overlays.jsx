@@ -119,10 +119,12 @@ export function SettingsModal({ open, settings, health, onClose, onSave }) {
         lookbackHours: settings.lookbackHours,
         topTrends: settings.topTrends,
         twitterMinEngagement: settings.twitterMinEngagement ?? 100,
+        bilibiliMinPlay: settings.bilibiliMinPlay ?? 50000,
         scopeName: settings.scope?.name || '',
         queries: (settings.scope?.queries || []).join('\n'),
         websearch: settings.sourceToggles?.websearch !== false,
         twitter: settings.sourceToggles?.twitter !== false,
+        bilibili: settings.sourceToggles?.bilibili !== false,
         mock: settings.sourceToggles?.mock !== false,
         eng_bing: engs.includes('bing'),
         eng_so360: engs.includes('so360'),
@@ -142,12 +144,13 @@ export function SettingsModal({ open, settings, health, onClose, onSave }) {
       lookbackHours: Number(form.lookbackHours) || 24,
       topTrends: Number(form.topTrends) || 12,
       twitterMinEngagement: Number(form.twitterMinEngagement) || 0,
+      bilibiliMinPlay: Number(form.bilibiliMinPlay) || 0,
       websearchEngines: ['bing', 'so360', 'baidu'].filter((k) => form['eng_' + k]),
       scope: {
         name: String(form.scopeName).trim() || 'AI 编程',
         queries: String(form.queries).split(/\r?\n/).map((s) => s.trim()).filter(Boolean),
       },
-      sourceToggles: { websearch: form.websearch, twitter: form.twitter, mock: form.mock },
+      sourceToggles: { websearch: form.websearch, twitter: form.twitter, bilibili: form.bilibili, mock: form.mock },
     });
   }
 
@@ -198,6 +201,24 @@ export function SettingsModal({ open, settings, health, onClose, onSave }) {
           <F label="OpenRouter 模型" hint="默认免费档 nvidia/nemotron-3-super-120b 零充值可用；充值后可换更强模型">
             <input className="inp w-full" value={form.model} onChange={(e) => set('model', e.target.value)} />
           </F>
+
+          <div className="rounded-xl border border-line-soft bg-void/40 px-3.5 py-3">
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 font-mono text-[11px] text-ink">
+              <label className="flex cursor-pointer items-center gap-2">
+                <input type="checkbox" checked={form.bilibili} onChange={(e) => set('bilibili', e.target.checked)}
+                  className="h-4 w-4 rounded accent-[#fb7299]" />
+                B站视频信源（无 Key，账号型关键词自动抓 UP 主）
+              </label>
+              <label className="flex items-center gap-2">
+                <span className="font-mono text-[11px] font-bold tracking-wider text-dim">B站最低播放量</span>
+                <input className="inp w-28" type="number" min="0" step="1000" value={form.bilibiliMinPlay}
+                  onChange={(e) => set('bilibiliMinPlay', e.target.value)} />
+              </label>
+            </div>
+            <p className="mt-1.5 font-mono text-[10px] leading-relaxed text-faint">
+              关键词含 @/博主/官方/UP 主/账号 等时自动视为账号，直接获取该账号最新视频
+            </p>
+          </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <F label="X 推文最低热度" hint="赞+转+评 之和 >= 该值才收录；回复帖一律排除。设为 0 表示不限">

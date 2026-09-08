@@ -71,6 +71,7 @@ const SRC_NAME = {
   baidu: { label: 'BAIDU', cls: 'src-baidu' },
   duckduckgo: { label: 'DDG', cls: 'src-duckduckgo' },
   twitter: { label: 'X', cls: 'src-twitter' },
+  bilibili: { label: 'B站', cls: 'src-bilibili' },
   mock: { label: 'DEMO', cls: 'src-mock' },
 };
 

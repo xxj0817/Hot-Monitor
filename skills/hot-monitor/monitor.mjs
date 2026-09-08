@@ -123,6 +123,97 @@ async function searchBaidu(q) {
   return out;
 }
 
+// ---------- Bilibili (CN, no API key; cookie bootstrap) ----------
+let biliCookie = '';
+let biliCookieTried = false;
+async function biliJson(url) {
+  await throttle(1500);
+  if (!biliCookieTried) {
+    biliCookieTried = true;
+    try {
+      const r = await fetch('https://www.bilibili.com/', { headers: { 'user-agent': UA }, signal: AbortSignal.timeout(10000) });
+      const m = (r.headers.get('set-cookie') || '').match(/buvid3=[^;]+/);
+      if (m) biliCookie = m[0];
+    } catch { /* keep empty */ }
+  }
+  const headers = { 'user-agent': UA, accept: 'application/json', referer: 'https://www.bilibili.com/' };
+  if (biliCookie) headers.cookie = biliCookie;
+  const res = await fetch(url, { headers, signal: AbortSignal.timeout(12000) });
+  const j = await res.json();
+  if (j.code === -412 || j.code === -799) throw new Error('bili risk ' + j.code);
+  if (j.code !== 0) throw new Error('bili code ' + j.code);
+  return j;
+}
+function isAcctKw(s) {
+  return /@|博主|官方|账号|工作室|团队|频道|up\s*主|UP\s*主|号$/.test(String(s || ''));
+}
+function cleanBiliTitle(s) {
+  return String(s || '').replace(/<[^>]+>/g, '').trim();
+}
+function mapBili(v) {
+  if (!v || !v.bvid) return null;
+  const title = cleanBiliTitle(v.title);
+  if (!title) return null;
+  const pub = Number(v.pubdate || 0) * 1000;
+  return {
+    title,
+    summary: String(v.description || '').trim(),
+    author: v.author ? '@' + v.author : '',
+    url: 'https://www.bilibili.com/video/' + v.bvid,
+    source: 'bilibili',
+    publishedAt: pub ? new Date(pub).toISOString() : new Date().toISOString(),
+    bvid: v.bvid,
+    mid: String(v.mid || ''),
+    play: Number(v.play) || 0,
+    like: Number(v.like) || 0,
+    reply: Number(v.video_review !== undefined ? v.video_review : v.review) || 0,
+  };
+}
+async function searchBiliRaw(q, order) {
+  const j = await biliJson('https://api.bilibili.com/x/web-interface/search/type?search_type=video&keyword=' + encodeURIComponent(q) + '&page=1' + (order ? '&order=' + order : ''));
+  const r = j.data && j.data.result;
+  return Array.isArray(r) ? r : [];
+}
+async function searchBili(q) {
+  const a = await searchBiliRaw(q, 'pubdate');
+  const b = await searchBiliRaw(q, '');
+  const seen = new Set();
+  const rows = [];
+  for (const v of [...a, ...b]) {
+    if (!v || !v.bvid || seen.has(v.bvid)) continue;
+    seen.add(v.bvid);
+    rows.push(v);
+  }
+  return rows.map(mapBili).filter(Boolean);
+}
+async function biliAccount(name) {
+  const j = await biliJson('https://api.bilibili.com/x/web-interface/search/type?search_type=bili_user&keyword=' + encodeURIComponent(name) + '&page=1');
+  const arr = (j.data && j.data.result) || [];
+  if (!Array.isArray(arr) || !arr.length) return null;
+  const t = String(name || '').toLowerCase().trim();
+  const b = arr.find((u) => String(u.uname || '').toLowerCase().trim() === t) || arr[0];
+  return { mid: String(b.mid || b.uid || ''), uname: b.uname || '', fans: Number(b.fans) || 0, videos: Number(b.videos) || 0 };
+}
+// Keyword or account aware Bilibili collection.
+async function collectBili(q) {
+  const acc = isAcctKw(q) ? await biliAccount(q) : null;
+  if (acc) {
+    const a = await searchBiliRaw(acc.uname, 'pubdate');
+    const b = await searchBiliRaw(acc.uname, '');
+    const seen = new Set();
+    const out = [];
+    for (const v of [...a, ...b]) {
+      if (!v || !v.bvid || seen.has(v.bvid)) continue;
+      seen.add(v.bvid);
+      if (String(v.mid || '') !== String(acc.mid)) continue;
+      const it = mapBili(v);
+      if (it) out.push({ ...it, acc: { mid: acc.mid, uname: acc.uname, fans: acc.fans, videos: acc.videos } });
+    }
+    return out;
+  }
+  return searchBili(q);
+}
+
 // ---------- Twitter (optional, twitterapi.io) ----------
 async function searchTwitter(q) {
   if (!TWITTER_KEY) return [];
@@ -245,7 +336,7 @@ function heatOf(item, kwHits = 0) {
   const recency = ageH <= 6 ? 40 : ageH <= 24 ? 26 : ageH <= 72 ? 12 : 5;
   const corroborated = item.engineCount >= 2;
   const corr = corroborated ? 10 : item.engineCount === 1 && /bing|so360|baidu|duckduckgo/.test(item.source) ? -4 : 0;
-  const engW = { twitter: 14, mock: 6, bing: 8, so360: 8, baidu: 6, duckduckgo: 8 }[item.source] ?? 8;
+  const engW = { twitter: 14, mock: 6, bing: 8, so360: 8, baidu: 6, duckduckgo: 8, bilibili: 8 }[item.source] ?? 8;
   const h = Math.max(1, Math.min(100, Math.round(recency + (item.mock ? 20 : 15) + engW + corr + Math.min(10, kwHits * 2))));
   const level = h >= 75 ? 'S' : h >= 55 ? 'A' : h >= 35 ? 'B' : 'C';
   return { heat: h, level };
@@ -299,11 +390,29 @@ function uniqueByUrl(items) {
   return out;
 }
 
+// round-robin by source so a limited result set keeps source diversity
+function interleave(items) {
+  const bySrc = new Map();
+  for (const it of items) {
+    if (!bySrc.has(it.source)) bySrc.set(it.source, []);
+    bySrc.get(it.source).push(it);
+  }
+  const keys = [...bySrc.keys()];
+  const maxLen = Math.max(0, ...[...bySrc.values()].map((a) => a.length));
+  const out = [];
+  for (let i = 0; i < maxLen; i++) {
+    for (const k of keys) {
+      if (bySrc.get(k)[i]) out.push(bySrc.get(k)[i]);
+    }
+  }
+  return out;
+}
+
 // ---------- entry ----------
 const HELP = `Hot-Monitor skill 用法:
   node monitor.mjs keyword "<关键词>" [--hours 24] [--limit 8] [--json] [--mock] [--min-eng 100]
   node monitor.mjs trend "<领域名>" [--queries "a,b,c"] [--hours 24] [--limit 10] [--json] [--mock] [--min-eng 100]
-说明: 自动用 Bing + 360搜索 + 百度(尽力) 网页搜索 + Twitter(如有 key，去回复且赞+转+评>=门槛) 采集，
+说明: 自动用 Bing + 360搜索 + 百度(尽力) + B站视频(含 UP 主/博主/官方账号抓取，无 Key) + Twitter(如有 key，去回复且赞+转+评>=门槛) 采集，
       多引擎交叉印证后由 OpenRouter 判定真伪/聚合。--mock 或缺少 OPENROUTER_API_KEY 时进入离线演示模式。`;
 
 function parseArgv(argv) {
@@ -326,6 +435,7 @@ async function collectAll(qs, withTwitter) {
     for (const fn of engines) {
       try { items.push(...(await fn(q))); } catch { /* engine failure: keep going */ }
     }
+    try { items.push(...(await collectBili(q))); } catch { /* bilibili failure: keep going */ }
   }
   if (withTwitter) {
     for (const q2 of qs.slice(0, 3)) {
@@ -344,7 +454,7 @@ async function runKeyword(kw, hours, limit, wantJson, forceMock, minEng) {
   } else {
     items = mockItems(kw, 'keyword');
   }
-  items = items.slice(0, limit);
+  items = interleave(items).slice(0, limit);
 
   const judged = [];
   for (const it of items) {
@@ -364,7 +474,7 @@ async function runTrend(scope, queries, hours, limit, wantJson, forceMock, minEn
   } else {
     items = mockItems(scope, 'trend');
   }
-  const scored = items.slice(0, Math.max(limit * 2, 12)).map((it) => {
+  const scored = interleave(items).slice(0, Math.max(limit * 2, 12)).map((it) => {
     let kwHits = 0;
     for (const q of qs) {
       if (String(it.title).toLowerCase().includes(q.toLowerCase())) kwHits++;

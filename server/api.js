@@ -145,7 +145,7 @@ router.patch('/settings', (req, res) => {
   const patch = req.body || {};
   const allowed = [
     'pollMinutes', 'model', 'lookbackHours', 'topTrends',
-    'sourceToggles', 'scope', 'twitterMinEngagement', 'websearchEngines',
+    'sourceToggles', 'scope', 'twitterMinEngagement', 'websearchEngines', 'bilibiliMinPlay',
   ];
   const clean = {};
   for (const k of allowed) {
@@ -156,6 +156,9 @@ router.patch('/settings', (req, res) => {
   if (clean.topTrends !== undefined) clean.topTrends = Math.max(3, Math.min(50, Number(clean.topTrends) || 12));
   if (clean.twitterMinEngagement !== undefined) {
     clean.twitterMinEngagement = Math.max(0, Number(clean.twitterMinEngagement) || 0);
+  }
+  if (clean.bilibiliMinPlay !== undefined) {
+    clean.bilibiliMinPlay = Math.max(0, Number(clean.bilibiliMinPlay) || 0);
   }
   if (clean.websearchEngines !== undefined) {
     const known = ['bing', 'so360', 'baidu'];

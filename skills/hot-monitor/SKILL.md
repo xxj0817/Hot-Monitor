@@ -3,7 +3,7 @@ name: hot-monitor
 description: >-
   AI 热点监控与发现技能。当用户想要监控某个关键词/产品的动态、第一时间了解某
   领域（如 AI 编程、大模型）的最新热点、识别资讯真伪（过滤标题党/假消息/营销
-  号）时使用。自动执行：多信源采集（Bing+360搜索+百度 网页搜索 + 可选 Twitter/X
+  号）时使用。自动执行：多信源采集（Bing+360搜索+百度 + B站视频(含 UP 主/博主/官方账号，无 Key) + 可选 Twitter/X
   高级搜索，跨引擎交叉印证）-> OpenRouter AI 判定相关性与真实性 -> 输出结构化热点/信号。
 ---
 
@@ -22,6 +22,7 @@ description: >-
   - 模型：默认 `nvidia/nemotron-3-super-120b-a12b:free`（免费可用），可用 `HOT_MONITOR_MODEL` 覆盖。
 - Twitter/X（可选）：`.env` 的 `TWITTER_API_KEY`（twitterapi.io），无则自动跳过 Twitter 信源。
   - Twitter 已自动排除回复帖，且要求 赞+转+评 >= `HOT_MONITOR_MIN_ENG`（默认 100）才收录，可设 0 关闭。
+- B站（内置，无需任何 Key）：自动搜索视频；关键词含 @/博主/官方/UP 主/账号/工作室/团队/频道 等时，自动当作账号并直接抓取该 UP 主的最新视频与资料。
 - 注意：脚本含中文，需以 UTF-8 保存/运行（Windows 下勿用 GBK）。
 
 ## 使用方式
