@@ -1,19 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, useEventStream, fmtTime } from './lib/api.js';
-import { RadarMark, Icon, Bracket } from './components/misc.jsx';
+import { Icon } from './components/misc.jsx';
+import { AuroraField, GlowCard, RadarLogo } from './components/ui/aceternity.jsx';
 import Ticker from './components/Ticker.jsx';
 import WatchPanel from './components/WatchPanel.jsx';
 import TrendPanel from './components/TrendPanel.jsx';
 import { Toasts, NotifDrawer, SettingsModal } from './components/Overlays.jsx';
 
 const EMPTY = {
-  keywords: [],
-  signals: [],
-  trends: [],
-  notifications: [],
-  sources: [],
-  trendRuns: [],
-  settings: null,
+  keywords: [], signals: [], trends: [], notifications: [],
+  sources: [], trendRuns: [], settings: null,
   health: { ai: false, twitter: false },
 };
 
@@ -23,22 +19,17 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [scanId, setScanId] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [toasts, setToasts] = useState([]);
+  const [flash, setFlash] = useState({});
   const [desktopOk, setDesktopOk] = useState(
     typeof Notification !== 'undefined' && Notification.permission === 'granted'
   );
-  const [toasts, setToasts] = useState([]);
   const refreshTimer = useRef(null);
 
   const refresh = useCallback(async () => {
-    try {
-      const s = await api.state();
-      setData(s);
-    } catch (e) {
-      console.error('state fetch failed', e.message);
-    }
+    try { setData(await api.state()); } catch (e) { console.error('state fetch failed', e.message); }
   }, []);
 
-  // 定时兜底刷新（SSE 断开时）
   useEffect(() => {
     refresh();
     const t = setInterval(refresh, 60000);
@@ -48,21 +39,22 @@ export default function App() {
   const addToast = useCallback((toast) => {
     const id = Math.random().toString(36).slice(2);
     setToasts((ts) => [...ts.slice(-3), { ...toast, id }]);
-    setTimeout(() => setToasts((ts) => ts.filter((x) => x.id !== id)), 8000);
+    setTimeout(() => setToasts((ts) => ts.filter((x) => x.id !== id)), 9000);
   }, []);
-
   const closeToast = useCallback((id) => setToasts((ts) => ts.filter((x) => x.id !== id)), []);
+
+  const flashId = useCallback((kind, id) => {
+    if (id == null) return;
+    const key = `${kind}:${id}`;
+    setFlash((f) => ({ ...f, [key]: Date.now() }));
+    setTimeout(() => setFlash((f) => { const n = { ...f }; delete n[key]; return n; }), 12000);
+  }, []);
 
   const desktopNotify = useCallback((title, body, url) => {
     if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
     try {
       const n = new Notification(`HOT//MONITOR · ${title}`, { body, tag: url });
-      if (url) {
-        n.onclick = () => {
-          window.open(url, '_blank');
-          n.close();
-        };
-      }
+      if (url) n.onclick = () => { window.open(url, '_blank'); n.close(); };
     } catch { /* ignore */ }
   }, []);
 
@@ -71,36 +63,30 @@ export default function App() {
     refreshTimer.current = setTimeout(refresh, 350);
   }, [refresh]);
 
-  // SSE 事件处理
-  const onEvent = useCallback(
-    (type, d) => {
-      if (type === 'signal.new') {
-        const sig = d.signal;
-        if (sig) {
-          addToast({ type: 'signal', title: `信号确认【${d.keyword}】`, body: sig.title, url: sig.url });
-          desktopNotify(d.keyword, sig.title, sig.url);
-        }
-        debouncedRefresh();
-      } else if (type === 'trend.new') {
-        const item = d.item;
-        if (item && (item.level === 'S' || item.level === 'A')) {
-          addToast({ type: 'trend', title: `新热点 [${item.level}]`, body: item.title, url: item.url });
-        }
-        debouncedRefresh();
-      } else if (type === 'notice') {
-        // scan.done 汇总只进收件箱；trend 汇总才弹提示
-        if (d.type === 'notice') {
-          addToast({ type: 'info', title: d.title, body: d.body });
-        }
-        debouncedRefresh();
-      } else if (type === 'scan.done') {
-        debouncedRefresh();
-      } else if (type === 'hello' || type === 'message') {
-        // ignore
+  // SSE：真信号第一时间落地
+  const onEvent = useCallback((type, d) => {
+    if (type === 'signal.new') {
+      const sig = d.signal;
+      if (sig) {
+        flashId('sig', sig.id);
+        addToast({ type: 'signal', title: `信号确认【${d.keyword}】`, body: sig.title, url: sig.url });
+        desktopNotify(d.keyword, sig.title, sig.url);
       }
-    },
-    [addToast, desktopNotify, debouncedRefresh]
-  );
+      debouncedRefresh();
+    } else if (type === 'trend.new') {
+      const it = d.item;
+      if (it) {
+        flashId('tr', it.id);
+        if (it.level === 'S' || it.level === 'A') addToast({ type: 'trend', title: `新热点 [${it.level}]`, body: it.title, url: it.url });
+      }
+      debouncedRefresh();
+    } else if (type === 'notice') {
+      if (d.type === 'notice') addToast({ type: 'info', title: d.title, body: d.body });
+      debouncedRefresh();
+    } else if (type === 'scan.done') {
+      debouncedRefresh();
+    }
+  }, [addToast, desktopNotify, debouncedRefresh, flashId]);
 
   useEffect(() => useEventStream(onEvent), [onEvent]);
 
@@ -109,236 +95,161 @@ export default function App() {
     setScanId(kw.id);
     try {
       const r = await api.scanKeyword(kw.id);
-      if (r.confirmed > 0 || r.added > 0) {
-        addToast({
-          type: 'info',
-          title: `扫描完成【${kw.name}】`,
-          body: `候选 ${r.candidates} · 新信号 ${r.added} · 确认 ${r.confirmed}`,
-        });
-      }
+      if (r.confirmed > 0 || r.added > 0) addToast({ type: 'info', title: `扫描完成【${kw.name}】`, body: `候选 ${r.candidates} · 新信号 ${r.added} · 确认 ${r.confirmed}` });
       await refresh();
-    } catch (e) {
-      addToast({ type: 'info', title: `扫描失败【${kw.name}】`, body: e.message });
-    } finally {
-      setScanId(null);
-    }
+    } catch (e) { addToast({ type: 'info', title: `扫描失败【${kw.name}】`, body: e.message }); }
+    finally { setScanId(null); }
   };
-
   const runWatchAll = async () => {
     try {
       const r = await api.runWatch();
-      const added = (r.results || []).reduce((a, x) => a + (x.added || 0), 0);
-      addToast({ type: 'info', title: '哨兵全员扫描', body: `新增 ${added} 条信号` });
+      addToast({ type: 'info', title: '哨兵全员扫描', body: `新增 ${(r.results || []).reduce((a, x) => a + (x.added || 0), 0)} 条信号` });
       await refresh();
-    } catch (e) {
-      addToast({ type: 'info', title: '扫描失败', body: e.message });
-    }
+    } catch (e) { addToast({ type: 'info', title: '扫描失败', body: e.message }); }
   };
-
   const refreshTrends = async () => {
     setRefreshing(true);
     try {
       const r = await api.refreshTrends();
       addToast({ type: 'info', title: '热点雷达刷新', body: `采集 ${r.candidates} · 上榜 ${r.kept} · 新增 ${r.added}` });
       await refresh();
-    } catch (e) {
-      addToast({ type: 'info', title: '热点刷新失败', body: e.message });
-    } finally {
-      setRefreshing(false);
-    }
+    } catch (e) { addToast({ type: 'info', title: '热点刷新失败', body: e.message }); }
+    finally { setRefreshing(false); }
   };
-
   const saveSettings = async (patch) => {
-    try {
-      await api.saveSettings(patch);
-      addToast({ type: 'info', title: '设置已保存', body: '轮询周期等参数已生效' });
-      setSettingsOpen(false);
-      await refresh();
-    } catch (e) {
-      addToast({ type: 'info', title: '保存失败', body: e.message });
-    }
+    try { await api.saveSettings(patch); addToast({ type: 'info', title: '设置已保存', body: '参数已生效' }); setSettingsOpen(false); await refresh(); }
+    catch (e) { addToast({ type: 'info', title: '保存失败', body: e.message }); }
   };
-
   const requestDesktop = async () => {
-    if (typeof Notification === 'undefined') {
-      addToast({ type: 'info', title: '浏览器不支持桌面通知', body: '请使用 Chrome/Edge 打开' });
-      return;
-    }
-    if (desktopOk) {
-      setDesktopOk(false);
-      return;
-    }
+    if (typeof Notification === 'undefined') { addToast({ type: 'info', title: '浏览器不支持桌面通知', body: '建议使用 Chrome / Edge' }); return; }
+    if (desktopOk) { setDesktopOk(false); return; }
     try {
       const p = await Notification.requestPermission();
       setDesktopOk(p === 'granted');
-      addToast({
-        type: 'info',
-        title: p === 'granted' ? '桌面提醒已开启' : '未获得桌面提醒权限',
-        body: p === 'granted' ? '后台标签页也能收到「真热点」弹窗' : '可在浏览器地址栏旁重新授权',
-      });
+      addToast({ type: 'info', title: p === 'granted' ? '桌面提醒已开启' : '未获得授权', body: p === 'granted' ? '后台也能收到真信号弹窗' : '可在浏览器地址栏重新授权' });
     } catch { /* ignore */ }
   };
+  const toggleKeyword = async (kw) => { await api.patchKeyword(kw.id, { enabled: kw.enabled ? 0 : 1 }); refresh(); };
+  const removeKeyword = async (kw) => { await api.delKeyword(kw.id); refresh(); };
+  const markRead = async (id) => { await api.markRead(id); refresh(); };
+  const readAll = async () => { await api.readAll(); refresh(); };
 
-  const toggleKeyword = async (kw) => {
-    await api.patchKeyword(kw.id, { enabled: kw.enabled ? 0 : 1 });
-    refresh();
-  };
-  const removeKeyword = async (kw) => {
-    await api.delKeyword(kw.id);
-    refresh();
-  };
-  const markRead = async (id) => {
-    await api.markRead(id);
-    refresh();
-  };
-  const readAll = async () => {
-    await api.readAll();
-    refresh();
-  };
-
-  // 分组信号
+  // ---- 派生数据 ----
   const signalsByKw = useMemo(() => {
     const m = {};
-    for (const s of data.signals) {
-      const k = s.keyword || '?';
-      (m[k] = m[k] || []).push(s);
-    }
+    for (const s of data.signals) (m[s.keyword || '?'] = m[s.keyword || '?'] || []).push(s);
     return m;
   }, [data.signals]);
 
+  const freshSigIds = useMemo(() => {
+    const o = {};
+    for (const k of Object.keys(flash)) if (k.startsWith('sig:')) o[k.slice(4)] = 1;
+    return o;
+  }, [flash]);
+  const freshTrendIds = useMemo(() => {
+    const o = {};
+    for (const k of Object.keys(flash)) if (k.startsWith('tr:')) o[k.slice(3)] = 1;
+    return o;
+  }, [flash]);
+
   const unread = useMemo(() => data.notifications.filter((n) => !n.read).length, [data.notifications]);
   const s = data.settings;
-  const lastTrendRun = data.trendRuns?.[0];
-  const sources = data.sources || [];
-  const cfg = { pollMinutes: s?.pollMinutes, model: s?.model, lookbackHours: s?.lookbackHours };
+  const lastRun = data.trendRuns?.[0];
   const toggles = s?.sourceToggles || {};
-  const scopes = s?.scope?.name;
 
   return (
-    <div className="mx-auto min-h-screen max-w-[1560px]">
+    <div className="relative min-h-screen">
+      <AuroraField />
+
       {/* ===== 顶栏 ===== */}
-      <header className="sticky top-0 z-40 border-b border-line bg-deck/90 backdrop-blur">
-        <div className="flex items-center gap-3 px-3 py-2 sm:px-4">
-          <RadarMark size={34} />
-          <div className="min-w-0 leading-none">
-            <h1 className="caret truncate font-mono text-[16px] font-bold tracking-[0.14em] text-ink">
-              HOT<span className="text-signal">//</span>MONITOR
+      <header className="sticky top-0 z-40 border-b border-line-soft bg-void/70 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-[1600px] items-center gap-3 px-4 py-2.5">
+          <RadarLogo size={36} />
+          <div className="min-w-0 leading-tight">
+            <h1 className="truncate font-mono text-[17px] font-black tracking-[0.12em]">
+              <span className="grad-text">HOT//MONITOR</span>
             </h1>
-            <p className="mt-0.5 truncate font-mono text-[10px] tracking-[0.3em] text-faint">
-              AI 热点情报雷达
-            </p>
+            <p className="truncate font-mono text-[9px] tracking-[0.42em] text-faint">AI 热点情报雷达 · 快人一步吃瓜</p>
           </div>
 
-          {/* 状态芯片 */}
-          <div className="ml-auto flex flex-wrap items-center gap-1.5 font-mono text-[10px]">
-            <span className={`hidden items-center gap-1.5 border px-2 py-1 sm:flex ${data.health?.ai ? 'border-signal/40 text-signal' : 'border-warn/40 text-warn'}`}>
-              <span className={`light ${data.health?.ai ? 'good' : 'warn'}`} />
-              {data.health?.ai ? 'AI 联机' : 'AI 降级'}
+          <div className="ml-auto flex items-center gap-2 font-mono text-[10px]">
+            <span className="mr-1 hidden items-center gap-1.5 rounded-full border border-mint/25 bg-mint/[0.06] px-2.5 py-1 text-mint sm:inline-flex">
+              <span className="live-dot" /> LIVE
             </span>
-            <span className={`hidden items-center gap-1.5 border px-2 py-1 md:flex ${data.health?.twitter ? 'border-signal/40 text-signal' : 'border-line text-faint'}`}>
-              <span className={`light ${data.health?.twitter ? 'good' : 'idle'}`} />
-              X {data.health?.twitter ? '接入' : '未接'}
+            <span className={`hidden items-center gap-1.5 rounded-full border px-2.5 py-1 md:inline-flex ${data.health?.ai ? 'border-mint/25 bg-mint/[0.05] text-mint' : 'border-warn/30 bg-warn/[0.06] text-warn'}`}>
+              <span className={`dot ${data.health?.ai ? 'good' : 'warn'}`} /> {data.health?.ai ? 'AI 联机' : 'AI 降级'}
             </span>
-            <button className={`btn small flex items-center gap-1.5 ${desktopOk ? '' : ''}`} onClick={requestDesktop} title="浏览器桌面提醒">
-              <Icon.bell size={12} />
-              <span className="hidden sm:inline">{desktopOk ? '提醒开' : '提醒关'}</span>
+            <span className={`hidden items-center gap-1.5 rounded-full border px-2.5 py-1 lg:inline-flex ${data.health?.twitter ? 'border-cyan/25 bg-cyan/[0.05] text-cyan' : 'border-line text-faint'}`}>
+              <span className={`dot ${data.health?.twitter ? 'cy' : 'idle'}`} /> X {data.health?.twitter ? '接入' : '未接'}
+            </span>
+            <button className="btn small inline-flex items-center gap-1.5" onClick={requestDesktop} title="浏览器桌面提醒">
+              <Icon.bell size={12} /> <span className="hidden sm:inline">{desktopOk ? '提醒开' : '提醒关'}</span>
             </button>
-            <button
-              className="btn small relative flex items-center gap-1"
-              onClick={() => setNotifOpen(true)}
-              aria-label="打开通知中心"
-            >
-              <Icon.bell size={12} />
-              {unread > 0 && (
-                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center bg-alert px-1 font-mono text-[9px] font-bold text-black">
-                  {unread > 99 ? '99+' : unread}
-                </span>
-              )}
+            <button className="btn small relative inline-flex items-center" onClick={() => setNotifOpen(true)} aria-label="打开通知中心">
+              <Icon.bell size={13} />
+              {unread > 0 && <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-linear-to-br from-rose to-vio px-1 font-mono text-[9px] font-bold text-white">{unread > 99 ? '99+' : unread}</span>}
             </button>
-            <button className="btn small flex items-center gap-1" onClick={() => setSettingsOpen(true)}>
-              <Icon.gear size={12} />
-            </button>
+            <button className="btn small inline-flex items-center" onClick={() => setSettingsOpen(true)} aria-label="设置"><Icon.gear size={13} /></button>
           </div>
         </div>
       </header>
 
-      {/* ===== 情报跑马灯 ===== */}
+      {/* ===== 情报快讯 ===== */}
       <Ticker signals={data.signals} trends={data.trends} />
 
       {/* ===== 主区 ===== */}
-      <main className="grid grid-cols-1 gap-3 px-3 py-3 lg:grid-cols-12 lg:px-4">
+      <main className="mx-auto grid max-w-[1600px] grid-cols-1 gap-4 px-4 py-4 lg:grid-cols-12">
         <div className="lg:col-span-5">
-          <WatchPanel
-            keywords={data.keywords}
-            signalsByKw={signalsByKw}
-            busyId={scanId}
-            onScan={scanKeyword}
-            onAdd={refresh}
-            onToggle={toggleKeyword}
-            onRemove={removeKeyword}
-          />
+          <WatchPanel keywords={data.keywords} signalsByKw={signalsByKw} busyId={scanId}
+            onScan={scanKeyword} onAdd={refresh} onToggle={toggleKeyword} onRemove={removeKeyword}
+            lastSeen={freshSigIds} />
         </div>
         <div className="lg:col-span-7">
-          <TrendPanel
-            scope={s?.scope}
-            trends={data.trends}
-            refreshing={refreshing}
-            onRefresh={refreshTrends}
-            lastRun={lastTrendRun?.status === 'done' ? fmtTime(lastTrendRun.finished_at) : ''}
-          />
+          <TrendPanel scope={s?.scope} trends={data.trends} refreshing={refreshing}
+            onRefresh={refreshTrends} newIds={freshTrendIds}
+            lastRun={lastRun?.status === 'done' ? fmtTime(lastRun.finished_at) : ''} />
         </div>
 
-        {/* ===== 运行状态条 ===== */}
-        <div className="panel lg:col-span-12">
-          <header className="panel-head">
-            <Icon.db size={15} className="text-signal" />
-            <Bracket text="运行状态 SYS-STATUS" />
-            <span className="ml-auto font-mono text-[10px] text-faint">数据持久化于本地 SQLite</span>
+        {/* ===== 遥测条 ===== */}
+        <GlowCard className="glass rounded-2xl lg:col-span-12">
+          <header className="flex items-center gap-2.5 border-b border-line-soft px-4 py-3">
+            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-cyan/10 text-cyan"><Icon.db size={14} /></span>
+            <span className="sect">运行遥测 <span className="text-faint normal-case tracking-normal">TELEMETRY</span></span>
+            <span className="ml-auto hidden font-mono text-[10px] text-faint sm:inline">数据持久化于本地 SQLite</span>
           </header>
-          <div className="grid grid-cols-1 gap-x-6 gap-y-3 px-4 py-3 font-mono text-[11px] md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-x-8 gap-y-4 px-5 py-4 font-mono text-[11px] md:grid-cols-2 xl:grid-cols-4">
             <div>
-              <p className="mb-1 font-bold tracking-wider text-dim">调度</p>
-              <p className="text-ink">
-                每 {cfg.pollMinutes || 30} 分钟自动执行 哨兵 + 雷达
-                <span className="ml-2 text-faint">窗口 {cfg.lookbackHours || 24}h</span>
-              </p>
-              <p className="mt-0.5 text-faint">
-                领域: {scopes || 'AI 编程'} · 模型: {cfg.model || '-'}
-              </p>
+              <p className="mb-1 text-[9px] font-bold tracking-[0.2em] text-faint">调度</p>
+              <p className="text-dim">每 {s?.pollMinutes || 30} 分钟 · 哨兵+雷达</p>
+              <p className="mt-0.5 text-faint">窗口 {s?.lookbackHours || 24}h · 领域「{s?.scope?.name || 'AI 编程'}」</p>
             </div>
             <div>
-              <p className="mb-1 font-bold tracking-wider text-dim">信源开关</p>
-              <p className="text-ink">
-                网页搜索 {toggles.websearch ? '[ON]' : '[OFF]'} · X 推文 {toggles.twitter ? '[ON]' : '[OFF]'} ·
-                演示源 {toggles.mock ? '[ON]' : '[OFF]'}
-              </p>
-              <p className="mt-0.5 text-faint">控频爬虫：Bing + DuckDuckGo 双引擎</p>
+              <p className="mb-1 text-[9px] font-bold tracking-[0.2em] text-faint">信源开关</p>
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                {[['websearch', '网页搜索', toggles.websearch], ['twitter', 'X 推文', toggles.twitter], ['mock', '演示源', toggles.mock]].map(([k, label, on]) => (
+                  <span key={k} className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] ${on ? 'border-vio/30 bg-vio/[0.07] text-vio' : 'border-line text-faint'}`}>
+                    <span className={`dot ${on ? 'vio' : 'idle'}`} style={{ width: 6, height: 6 }} />{label}
+                  </span>
+                ))}
+              </div>
             </div>
             <div>
-              <p className="mb-1 font-bold tracking-wider text-dim">最近雷达批次</p>
-              {lastTrendRun ? (
+              <p className="mb-1 text-[9px] font-bold tracking-[0.2em] text-faint">最近批次</p>
+              {lastRun ? (
                 <>
-                  <p className="text-ink">
-                    {lastTrendRun.status} · 上榜 {lastTrendRun.items} 条 · {fmtTime(lastTrendRun.finished_at || lastTrendRun.started_at)}
-                  </p>
-                  <p className="mt-0.5 truncate text-faint" title={lastTrendRun.note || ''}>
-                    {lastTrendRun.note || lastTrendRun.scope}
-                  </p>
+                  <p className="text-dim">{lastRun.status} · 上榜 {lastRun.items} · {fmtTime(lastRun.finished_at || lastRun.started_at)}</p>
+                  <p className="mt-0.5 truncate text-faint" title={lastRun.note || ''}>{lastRun.note || lastRun.scope}</p>
                 </>
-              ) : (
-                <p className="text-faint">尚无批次记录</p>
-              )}
+              ) : <p className="text-faint">尚无批次</p>}
             </div>
             <div>
-              <p className="mb-1 font-bold tracking-wider text-dim">信源健康</p>
-              {sources.length === 0 ? (
-                <p className="text-faint">暂无采集记录（等待首次任务）</p>
-              ) : (
-                <ul className="space-y-0.5">
-                  {sources.map((m) => (
+              <p className="mb-1 text-[9px] font-bold tracking-[0.2em] text-faint">信源健康</p>
+              {data.sources.length === 0 ? <p className="text-faint">等待首次采集</p> : (
+                <ul className="space-y-1">
+                  {data.sources.map((m) => (
                     <li key={m.source} className="flex items-center gap-2">
-                      <span className={`light ${m.last_ok ? 'good' : 'bad'}`} style={{ width: 7, height: 7 }} />
-                      <span className="truncate text-ink">{m.source}</span>
+                      <span className={`dot ${m.last_ok ? 'good' : 'bad'}`} style={{ width: 6, height: 6 }} />
+                      <span className="truncate text-dim">{m.source}</span>
                       <span className="ml-auto text-faint">{m.last_count} 条</span>
                     </li>
                   ))}
@@ -346,39 +257,22 @@ export default function App() {
               )}
             </div>
           </div>
-          <footer className="flex flex-wrap items-center gap-2 border-t border-line px-4 py-2">
-            <button className="btn small" onClick={runWatchAll}>
-              <span className="flex items-center gap-1"><Icon.scan size={12} /> 哨兵全员扫描</span>
-            </button>
-            <span className="font-mono text-[10px] text-faint">
-              提示：真实数据请关掉「演示源」并在 .env 配置 Key 后重启；演示源用于全链路验证。
-            </span>
+          <footer className="flex flex-wrap items-center gap-3 border-t border-line-soft px-5 py-2.5">
+            <button className="btn small" onClick={runWatchAll}><span className="flex items-center gap-1.5"><Icon.zap size={12} /> 一键全员扫描</span></button>
+            <span className="font-mono text-[9.5px] text-faint">真实数据请关掉「演示源」并配置 .env；演示源用于全链路验证</span>
           </footer>
-        </div>
+        </GlowCard>
       </main>
 
-      <footer className="px-4 pb-4 text-center font-mono text-[10px] text-faint">
-        HOT//MONITOR v1.0 · OpenRouter + twitterapi.io · 情报自动发现 / AI 验真 / 多信源聚合
+      <footer className="pb-5 pt-1 text-center font-mono text-[9px] tracking-widest text-faint">
+        HOT//MONITOR v2 · Aceternity UI 风格 · OpenRouter + twitterapi.io · AI 验真 / 多信源聚合
       </footer>
 
-      {/* ===== 浮层 ===== */}
       <Toasts toasts={toasts} onClose={closeToast} />
-      <NotifDrawer
-        open={notifOpen}
-        notifications={data.notifications}
-        unread={unread}
-        onClose={() => setNotifOpen(false)}
-        onRead={markRead}
-        onReadAll={readAll}
-      />
-      <SettingsModal
-        open={settingsOpen}
-        settings={data.settings}
-        health={data.health}
-        meta={{ config: data.meta ? data.meta.config : {} }}
-        onClose={() => setSettingsOpen(false)}
-        onSave={saveSettings}
-      />
+      <NotifDrawer open={notifOpen} notifications={data.notifications} unread={unread}
+        onClose={() => setNotifOpen(false)} onRead={markRead} onReadAll={readAll} />
+      <SettingsModal open={settingsOpen} settings={data.settings} health={data.health}
+        onClose={() => setSettingsOpen(false)} onSave={saveSettings} />
     </div>
   );
 }

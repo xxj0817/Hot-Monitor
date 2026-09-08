@@ -1,52 +1,45 @@
-// 最新情报跑马灯：滚动展示最新信号与热点
+// 情报快讯条：滚动播报最新信号与热点（LIVE）
 export default function Ticker({ signals, trends }) {
   const items = [];
-  // 已确认信号优先（新→旧）
   for (const s of signals) {
     if (s.related === 1 && (s.authentic === 1 || s.verdict === 'demo' || s.verdict === 'authentic')) {
-      items.push({ type: 'sig', text: `${s.keyword || ''}`, title: s.title, url: s.url, src: s.source });
+      items.push({ type: 'sig', title: s.title, url: s.url, src: s.source });
     }
-    if (items.length >= 8) break;
+    if (items.length >= 7) break;
   }
-  const seenTitles = new Set(items.map((i) => i.title));
+  const seen = new Set(items.map((i) => i.title));
   for (const t of trends) {
-    if (t.level === 'S' || t.level === 'A') {
-      if (seenTitles.has(t.title)) continue;
-      seenTitles.add(t.title);
-      items.push({ type: 'trend', text: `热点${t.level}`, title: t.title, url: t.url, src: t.source });
+    if ((t.level === 'S' || t.level === 'A') && !seen.has(t.title)) {
+      seen.add(t.title);
+      items.push({ type: 'trend', title: t.title, url: t.url, src: t.source });
     }
-    if (items.length >= 14) break;
+    if (items.length >= 13) break;
   }
   if (items.length === 0) {
     return (
-      <div className="border-y border-line bg-deck px-3 py-1.5 font-mono text-[11px] text-faint">
-        &gt; 情报流待命：等待首次扫描产生信号…
+      <div className="border-y border-line-soft bg-panel/40 px-4 py-2 text-center font-mono text-[11px] text-faint backdrop-blur">
+        <span className="mr-2 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-vio align-middle" />
+        情报流待命 · 完成首次扫描后，真信号将在这里第一时间滚动
       </div>
     );
   }
-
-  const row = (i) => (
-    <a
-      key={`${i.type}-${i.title}-${i.url}`}
-      href={i.url}
-      target="_blank"
-      rel="noreferrer"
-      className="mx-3 inline-flex items-center gap-2 hover:text-signal"
-    >
-      <span className={i.type === 'sig' ? 'text-signal' : 'text-warn'}>
-        {i.type === 'sig' ? '[SIG]' : '[HOT]'}
+  const row = (it) => (
+    <a key={`${it.type}-${it.title}-${it.url}`} href={it.url} target="_blank" rel="noreferrer"
+      className="mx-4 inline-flex max-w-[60vw] items-center gap-2.5 text-[12px] hover:text-cyan">
+      <span className={`flex-none rounded-md px-1.5 py-px font-mono text-[9px] font-bold tracking-widest ${it.type === 'sig' ? 'bg-vio/20 text-vio' : 'bg-cyan/15 text-cyan'}`}>
+        {it.type === 'sig' ? 'SIG' : 'HOT'}
       </span>
-      <span className="text-dim">{i.src}</span>
-      <span className="max-w-[46vw] truncate text-ink">{i.title}</span>
+      <span className="truncate text-dim">{it.title}</span>
+      <span className="flex-none font-mono text-[9px] uppercase text-faint">{it.src}</span>
     </a>
   );
-
-  // 复制两份实现无缝循环
-  const half = [...items, ...items];
+  const doubled = [...items, ...items];
   return (
-    <div className="ticker-wrap overflow-hidden border-y border-line bg-deck py-1.5">
-      <div className="ticker-track font-mono text-[11px]" aria-hidden="false">
-        {half.map(row)}
+    <div className="ticker-wrap relative overflow-hidden border-y border-line-soft bg-panel/30 py-2 backdrop-blur">
+      <div className="absolute inset-y-0 left-0 z-10 w-10 bg-linear-to-r from-void to-transparent" />
+      <div className="absolute inset-y-0 right-0 z-10 w-10 bg-linear-to-l from-void to-transparent" />
+      <div className="ticker-track">
+        {doubled.map(row)}
       </div>
     </div>
   );

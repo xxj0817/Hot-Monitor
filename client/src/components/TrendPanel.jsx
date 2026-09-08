@@ -1,89 +1,81 @@
-import { Icon, LevelBadge, SourceTag, HeatBar, Bracket } from './misc.jsx';
+import { Icon, LevelBadge, SourceTag, Sect } from './misc.jsx';
+import { HeatGrad } from './ui/aceternity.jsx';
 import { relTime } from '../lib/api.js';
 
-export default function TrendPanel({ scope, trends, refreshing, onRefresh, lastRun }) {
+const TONE = { S: 'a', A: 'a', B: 'b', C: 'c' };
+
+export default function TrendPanel({ scope, trends, refreshing, onRefresh, lastRun, newIds }) {
   const top = trends.filter((t) => t && t.title);
   return (
-    <section className="panel flex flex-col" aria-label="热点雷达">
-      <header className="panel-head">
-        <Icon.radar size={15} className="text-signal" />
-        <Bracket text={`热点雷达 ${(scope?.name || 'AI 编程').slice(0, 10)}`} />
-        <span className="font-mono text-[10px] text-faint">TREND-RADAR · 每轮 {trends.length} 条在榜</span>
-        <button className="btn small ml-auto" disabled={refreshing} onClick={onRefresh}>
-          {refreshing ? '采集中' : '立即刷新'}
-        </button>
-      </header>
+    <section className="glass dash-col flex min-h-0 flex-col overflow-hidden rounded-2xl">
+      <Sect icon={Icon.flame}
+        right={
+          <>
+            {lastRun && <span className="hidden font-mono text-[10px] text-faint sm:inline">更新于 {lastRun}</span>}
+            <button className="btn small" disabled={refreshing} onClick={onRefresh}>
+              {refreshing ? <span className="flex items-center gap-1"><span className="dot cy" /> 采集中</span> : <span className="flex items-center gap-1"><Icon.refresh size={12} /> 立即刷新</span>}
+            </button>
+          </>
+        }>
+        热点雷达 <span className="text-faint normal-case tracking-normal">TREND-RADAR</span>
+      </Sect>
 
       {scope?.queries?.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 border-b border-line px-3 py-2">
+        <div className="flex flex-wrap gap-1.5 border-b border-line-soft px-4 py-2">
           {scope.queries.slice(0, 6).map((q) => (
-            <span key={q} className="font-mono text-[10px] text-dim">
-              &gt; {q}
-            </span>
+            <span key={q} className="rounded-full border border-line/70 px-2 py-0.5 font-mono text-[10px] text-faint">{q}</span>
           ))}
-          {scope.queries.length > 6 && (
-            <span className="font-mono text-[10px] text-faint">+{scope.queries.length - 6} 词</span>
-          )}
+          {scope.queries.length > 6 && <span className="px-1 py-0.5 font-mono text-[10px] text-faint">+{scope.queries.length - 6}</span>}
         </div>
       )}
 
       {top.length === 0 ? (
-        <div className="px-4 py-10 text-center text-[12px] leading-relaxed text-dim">
-          热点榜暂无数据。
-          <br />
-          点击右上「<span className="font-mono text-signal">立即刷新</span>」从多信源采集并让 AI 聚合。
-          <br />
-          {lastRun && <span className="font-mono text-[10px] text-faint">上次批次：{lastRun}</span>}
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 py-14 text-center">
+          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-linear-to-br from-vio/25 to-cyan/15 text-vio"><Icon.radar size={26} /></span>
+          <p className="font-mono text-[13px] text-dim">热点榜暂无数据</p>
+          <p className="max-w-[280px] text-[12px] leading-relaxed text-faint">点「立即刷新」从多信源采集，AI 聚合后按热度排榜，大瓜第一时间置顶</p>
+          <button className="btn solid mt-1" onClick={onRefresh} disabled={refreshing}>
+            <span className="flex items-center gap-1.5"><Icon.zap size={13} /> {refreshing ? '采集中' : '开始扫描热点'}</span>
+          </button>
         </div>
       ) : (
-        <ol className="max-h-[52vh] overflow-y-auto">
+        <ol className="flex-1 space-y-1.5 overflow-y-auto p-3">
           {top.map((t, i) => {
             const cred = t.credible === 1 ? 'good' : t.credible === null ? 'warn' : 'bad';
+            const tone = TONE[t.level] || 'c';
+            const hot = i === 0;
             return (
-              <li key={t.id || t.url} className="risein group border-b border-line2 px-3 py-2 hover:bg-panel2/60">
+              <li key={t.id || t.url}
+                className={`group rounded-xl border p-2.5 transition-all duration-200 ${newIds && newIds[t.id] ? 'pop-in border-vio/50 bg-vio/[0.06]' : 'border-line-soft/70 bg-white/[0.015] hover:border-vio/40 hover:bg-white/[0.03]'}`}>
                 <div className="flex items-center gap-3">
-                  <span
-                    className={`flex-none font-mono text-[20px] font-bold leading-none ${
-                      i === 0 ? 'text-alert' : i < 3 ? 'text-warn' : 'text-dim'
-                    }`}
-                    style={{ minWidth: 22 }}
-                  >
-                    {String(i + 1).padStart(2, '0')}
+                  {/* 排名：前3带渐变 */}
+                  <span className="w-7 flex-none text-center font-mono text-[22px] font-black leading-none">
+                    {i === 0
+                      ? <span className="grad-text">{String(i + 1).padStart(2, '0')}</span>
+                      : <span className={i < 3 ? 'text-transparent bg-clip-text bg-linear-to-b from-vio to-cyan' : 'text-faint'}>{String(i + 1).padStart(2, '0')}</span>}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <a
-                      href={t.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="block truncate text-[13.5px] font-medium text-ink hover:text-signal"
-                      title={t.title}
-                    >
-                      {t.title}
-                    </a>
-                    <div className="mt-1 flex items-center gap-2">
-                      <HeatBar heat={t.heat} level={t.level} />
-                      <span className="flex-none font-mono text-[11px] text-signal">{t.heat}</span>
+                    <div className="flex items-center gap-2">
+                      <a href={t.url} target="_blank" rel="noreferrer" title={t.title}
+                        className="block min-w-0 truncate text-[13.5px] font-semibold text-ink transition-colors hover:text-cyan">
+                        {hot ? <span className="shine">{t.title}</span> : t.title}
+                      </a>
+                      {hot && <span className="flex-none rounded-full bg-rose/15 px-2 py-px font-mono text-[9px] font-bold tracking-widest text-rose">HEADLINE</span>}
                     </div>
-                    {t.summary && (
-                      <p className="mt-1 line-clamp-2 text-[11.5px] leading-snug text-dim">{t.summary}</p>
-                    )}
-                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 font-mono text-[10px] text-faint">
+                    <div className="mt-1.5 flex items-center gap-2.5">
+                      <HeatGrad value={t.heat} tone={tone} />
+                      <span className="flex-none font-mono text-[11px] font-bold text-cyan">{t.heat}</span>
+                    </div>
+                    {t.summary && <p className="mt-1 line-clamp-2 text-[11.5px] leading-snug text-dim">{t.summary}</p>}
+                    <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 font-mono text-[10px] text-faint">
                       <LevelBadge level={t.level} />
                       <SourceTag source={t.source} />
-                      <span className="flex items-center gap-1">
-                        <span className={`light ${cred}`} style={{ width: 6, height: 6 }} />
-                        可信度
-                      </span>
+                      <span className="inline-flex items-center gap-1.5"><span className={`dot ${cred}`} style={{ width: 6, height: 6 }} /> 可信度</span>
                       <span className="ml-auto">{relTime(t.updated_at || t.first_seen)}</span>
                     </div>
                   </div>
-                  <a
-                    href={t.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label="打开来源"
-                    className="hidden flex-none text-faint hover:text-signal group-hover:block"
-                  >
+                  <a href={t.url} target="_blank" rel="noreferrer" aria-label="打开来源"
+                    className="hidden flex-none text-faint transition-colors hover:text-cyan group-hover:block">
                     <Icon.ext size={14} />
                   </a>
                 </div>
