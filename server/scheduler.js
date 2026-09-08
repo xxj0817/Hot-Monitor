@@ -2,6 +2,7 @@
 import { getSettings } from './config.js';
 import { scanAllKeywords } from './watcher.js';
 import { refreshTrend } from './trend.js';
+import { logStart, logDone, logErr, logBoot } from './log.js';
 
 let timer = null;
 let running = false;
@@ -11,15 +12,15 @@ async function cycle(kind) {
   running = true;
   const t0 = Date.now();
   const tag = kind === 'watch' ? '关键词哨兵' : kind === 'trend' ? '热点雷达' : '关键词哨兵+热点雷达';
-  console.log(`[scheduler] ${tag} 开始 ${new Date().toISOString()}`);
+  logStart('scheduler', `${tag} 开始 ${new Date().toISOString()}`);
   try {
     const jobs = [];
-    if (!kind || kind === 'watch') jobs.push(scanAllKeywords().catch((e) => console.error('[sched] watcher', e.message)));
-    if (!kind || kind === 'trend') jobs.push(refreshTrend().catch((e) => console.error('[sched] trend', e.message)));
+    if (!kind || kind === 'watch') jobs.push(scanAllKeywords().catch((e) => logErr('watch', e.message)));
+    if (!kind || kind === 'trend') jobs.push(refreshTrend().catch((e) => logErr('trend', e.message)));
     await Promise.all(jobs);
-    console.log(`[scheduler] ${tag} 完成 耗时=${Math.round((Date.now() - t0) / 1000)}s`);
+    logDone('scheduler', `${tag} 完成 耗时=${Math.round((Date.now() - t0) / 1000)}s`);
   } catch (e) {
-    console.error('[scheduler] 周期异常', e.message);
+    logErr('scheduler', `周期异常: ${e.message}`);
   } finally {
     running = false;
   }
@@ -31,7 +32,7 @@ export function startScheduler() {
   // 启动后先跑一次，让页面尽快有数据（演示/验收友好）
   setTimeout(() => cycle().catch(() => {}), 1500);
   timer = setInterval(() => cycle().catch(() => {}), mins * 60 * 1000);
-  console.log(`[scheduler] 已启动：每 ${mins} 分钟执行 关键词哨兵+热点雷达`);
+  logBoot('scheduler', `已启动：每 ${mins} 分钟执行 关键词哨兵+热点雷达`);
 }
 
 export function stopScheduler() {

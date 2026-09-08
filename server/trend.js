@@ -2,6 +2,7 @@
 import { db, now, getDomainFakeHits, GREYLIST_HITS } from './db.js';
 import { getSettings } from './config.js';
 import { refine, rank } from './ai.js';
+import { ic, logEvent, logErr, logDone } from './log.js';
 import { notify } from './notify.js';
 import { broadcast } from './bus.js';
 import { norm } from './sources/base.js';
@@ -124,7 +125,8 @@ export async function refreshTrend(manual = false) {
   }
 
   const elapsed = Math.round((Date.now() - t0) / 1000);
-  console.log(`[trend] "${name}": raw=${raw.length} 去重=${uniq.length} 提炼=${refined.length} 打分=${scored.length} 上榜=${top.length} 新增=${added} 耗时=${elapsed}s${manual ? ' (手动)' : ''}`);
+  const tHit = added > 0;
+  logEvent(tHit ? ic.spark : ic.eye, tHit ? 'yellow' : 'dim', 'trend', `"${name}": raw=${raw.length} 去重=${uniq.length} 提炼=${refined.length} 打分=${scored.length} 上榜=${top.length} 新增=${added} 耗时=${elapsed}s${manual ? ' (手动)' : ''}`);
   finRun.run(now(), 'done', top.length, `added=${added}${manual ? ' (手动刷新)' : ''}`, runId);
   if (added > 0) {
     notify('notice', '热点雷达更新', `领域「${name}」发现 ${added} 条新热点`, { scope: name, added });

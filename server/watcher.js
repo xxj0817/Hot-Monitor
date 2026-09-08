@@ -2,6 +2,7 @@
 import { db, now, touchSource, getDomainFakeHits, bumpDomainFake, GREYLIST_HITS } from './db.js';
 import { getSettings } from './config.js';
 import { judge } from './ai.js';
+import { ic, logEvent, logDone, logErr } from './log.js';
 import { notify } from './notify.js';
 import { broadcast } from './bus.js';
 import { norm } from './sources/base.js';
@@ -129,7 +130,8 @@ export async function scanKeyword(kw) {
   const bySrc = {};
   for (const c of candidates) bySrc[c.source] = (bySrc[c.source] || 0) + 1;
   const srcStr = Object.entries(bySrc).map(([s, n]) => `${s}=${n}`).join(' ');
-  console.log(`[watch] "${kw.name}": 采集 ${candidates.length} (${srcStr}) -> 新 ${fresh.length} -> 入库 ${added} / 确认 ${confirmed}`);
+  const hit = added > 0 || confirmed > 0;
+  logEvent(hit ? ic.check : ic.clock, hit ? 'green' : 'dim', 'watch', `"${kw.name}": 采集 ${candidates.length} (${srcStr}) -> 新 ${fresh.length} -> 入库 ${added} / 确认 ${confirmed}`);
   updLastScan.run(now(), kw.id);
   return { keyword: kw.name, candidates: candidates.length, fresh: fresh.length, added, confirmed };
 }
@@ -141,12 +143,13 @@ export async function scanAllKeywords() {
     try {
       results.push(await scanKeyword(kw));
     } catch (e) {
-      console.error(`[watcher] ${kw.name} scan error:`, e.message);
+      logErr('watch', `"${kw.name}" 扫描异常: ${e.message}`);
       results.push({ keyword: kw.name, error: e.message, candidates: 0, fresh: 0, added: 0, confirmed: 0 });
     }
   }
   const added = results.reduce((a, r) => a + (r.added || 0), 0);
   const confirmed = results.reduce((a, r) => a + (r.confirmed || 0), 0);
+  logDone('watch', `扫描完成：${results.length} 个关键词，新增 ${added} / 确认 ${confirmed}`);
   broadcast('scan.done', { at: now(), results, added, confirmed });
   if (added > 0 || confirmed > 0) {
     notify('scan.done', '关键词扫描完成', `扫描 ${results.length} 个关键词：新增 ${added} 条信号，确认 ${confirmed} 条`, { results });
