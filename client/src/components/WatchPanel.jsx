@@ -4,6 +4,7 @@ import { Icon, SigLight, VerdictBadge, SourceTag, Legend, Sect } from './misc.js
 import { GlowCard } from './ui/aceternity.jsx';
 
 function SigRow({ sig, fresh }) {
+  const demo = !sig.url || String(sig.url).includes('demo.hotmonitor.local');
   return (
     <div className={`${fresh ? 'pop-in' : ''} group flex items-start gap-2.5 rounded-xl px-3 py-2 transition-colors hover:bg-white/[0.035]`}>
       <span className="mt-1.5 flex-none"><SigLight verdict={sig.verdict} /></span>
@@ -14,16 +15,26 @@ function SigRow({ sig, fresh }) {
           <span className="font-mono text-[10px] text-faint">{relTime(sig.seen_at)}</span>
           <span className="ml-auto font-mono text-[10px] text-faint">AI {sig.score ?? '·'}</span>
         </div>
-        <a href={sig.url} target="_blank" rel="noreferrer"
-          className="mt-0.5 block text-[13px] font-medium leading-snug text-ink transition-colors hover:text-cyan">
-          {sig.title}
-        </a>
+        {demo ? (
+          <span className="mt-0.5 block cursor-default text-[13px] font-medium leading-snug text-faint/80"
+            title="演示数据：域名 demo.hotmonitor.local 为虚构，仅供无外网演示，无真实网页">
+            {sig.title}
+            <span className="ml-1.5 rounded-md bg-white/5 px-1.5 py-px align-middle font-mono text-[9px] uppercase tracking-wider text-faint">演示 · 无链接</span>
+          </span>
+        ) : (
+          <a href={sig.url} target="_blank" rel="noreferrer"
+            className="mt-0.5 block text-[13px] font-medium leading-snug text-ink transition-colors hover:text-cyan">
+            {sig.title}
+          </a>
+        )}
         {sig.reason && <p className="mt-0.5 line-clamp-1 text-[11px] text-faint" title={sig.reason}>{sig.reason}</p>}
       </div>
-      <a href={sig.url} target="_blank" rel="noreferrer" aria-label="打开链接"
-        className="mt-1 hidden flex-none text-faint transition-colors hover:text-vio group-hover:block">
-        <Icon.ext size={13} />
-      </a>
+      {!demo && (
+        <a href={sig.url} target="_blank" rel="noreferrer" aria-label="打开链接"
+          className="mt-1 hidden flex-none text-faint transition-colors hover:text-vio group-hover:block">
+          <Icon.ext size={13} />
+        </a>
+      )}
     </div>
   );
 }

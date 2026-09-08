@@ -23,16 +23,28 @@ export default function Ticker({ signals, trends }) {
       </div>
     );
   }
-  const row = (it) => (
-    <a key={`${it.type}-${it.title}-${it.url}`} href={it.url} target="_blank" rel="noreferrer"
-      className="mx-4 inline-flex max-w-[60vw] items-center gap-2.5 text-[12px] hover:text-cyan">
+  const row = (it) => {
+    const demo = !it.url || String(it.url).includes('demo.hotmonitor.local');
+    const cls = 'mx-4 inline-flex max-w-[60vw] items-center gap-2.5 text-[12px] hover:text-cyan';
+    const tag = (
       <span className={`flex-none rounded-md px-1.5 py-px font-mono text-[9px] font-bold tracking-widest ${it.type === 'sig' ? 'bg-vio/20 text-vio' : 'bg-cyan/15 text-cyan'}`}>
         {it.type === 'sig' ? 'SIG' : 'HOT'}
       </span>
-      <span className="truncate text-dim">{it.title}</span>
-      <span className="flex-none font-mono text-[9px] uppercase text-faint">{it.src}</span>
-    </a>
-  );
+    );
+    const inner = (<><span className="text-dim">{it.src}</span><span className="truncate text-ink">{it.title}</span>{demo && <span className="flex-none rounded bg-white/5 px-1 font-mono text-[8px] text-faint">演示</span>}</>);
+    if (demo) {
+      return (
+        <span key={`${it.type}-${it.title}-${it.url}`} className={`${cls} cursor-default`} title="演示数据，无真实链接">
+          {tag}{inner}
+        </span>
+      );
+    }
+    return (
+      <a key={`${it.type}-${it.title}-${it.url}`} href={it.url} target="_blank" rel="noreferrer" className={cls}>
+        {tag}{inner}
+      </a>
+    );
+  };
   const doubled = [...items, ...items];
   return (
     <div className="ticker-wrap relative overflow-hidden border-y border-line-soft bg-panel/30 py-2 backdrop-blur">
