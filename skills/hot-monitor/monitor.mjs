@@ -123,6 +123,47 @@ async function searchBaidu(q) {
   return out;
 }
 
+// ---------- 360 news (dated fresh results) ----------
+const RE_ABS = /(20\d{2})[-\/.](\d{1,2})[-\/.](\d{1,2})/;
+const RE_ABS_CN = /(20\d{2})\u5e74(\d{1,2})\u6708(\d{1,2})\u65e5/;
+const RE_REL = /(\d+)\s*(\u5206\u949f|\u5c0f\u65f6|\u5929)\u524d/;
+function parseDateText(txt) {
+  const t = String(txt || '');
+  let m = t.match(RE_ABS) || t.match(RE_ABS_CN);
+  if (m) {
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    if (!Number.isNaN(d.getTime())) return d.toISOString();
+  }
+  m = t.match(RE_REL);
+  if (m) {
+    const n = Number(m[1]);
+    const unit = m[2];
+    const ms = unit === '\u5206\u949f' ? 60e3 : unit === '\u5c0f\u65f6' ? 3600e3 : 864e5;
+    return new Date(Date.now() - n * ms).toISOString();
+  }
+  if (/\u6628\u5929/.test(t)) return new Date(Date.now() - 864e5).toISOString();
+  if (/\u4eca\u5929|\u521a\u521a/.test(t)) return new Date().toISOString();
+  return null;
+}
+async function search360News(q) {
+  await throttle();
+  const html = await fetchHtml('https://news.so.com/ns?q=' + encodeURIComponent(q) + '&sort=1');
+  const out = [];
+  for (const block of String(html).split(/<li class="full-txt res-list/).slice(1)) {
+    const uM = block.match(/data-url="([^"]+)"/) || block.match(/<a[^>]+href="([^"]+)"/);
+    if (!uM) continue;
+    const u = dec(uM[1]);
+    if (!/^https?:\/\//.test(u)) continue;
+    const tM = block.match(/<h3[^>]*class="[^"]*g-title[^"]*"[^>]*>([\s\S]*?)<\/h3>/i);
+    const title = tM ? strip(tM[1]) : '';
+    const sM = block.match(/<p[^>]*class="[^"]*summary[^"]*"[^>]*>([\s\S]*?)<\/p>/i);
+    const timeM = block.match(/<span[^>]*class="[^"]*time[^"]*"[^>]*>([\s\S]*?)<\/span>/i);
+    const iso = timeM ? parseDateText(strip(timeM[1])) : null;
+    if (title) out.push({ title, url: u, summary: sM ? strip(sM[1]) : '', source: 'so360news', publishedAt: iso || new Date().toISOString(), tsKnown: !!iso });
+  }
+  return out;
+}
+
 // ---------- Bilibili (CN, no API key; cookie bootstrap) ----------
 let biliCookie = '';
 let biliCookieTried = false;
@@ -333,7 +374,10 @@ async function judge(item, keyword) {
 function heatOf(item, kwHits = 0) {
   let ageH = 99;
   try { ageH = (Date.now() - Date.parse(item.publishedAt)) / 3600000; } catch { /* keep */ }
-  const recency = ageH <= 6 ? 40 : ageH <= 24 ? 26 : ageH <= 72 ? 12 : 5;
+  const recencyBase = ageH <= 6 ? 40 : ageH <= 24 ? 26 : ageH <= 72 ? 12 : 5;
+  // web results without a trusted publish time must not look "fresh"
+  const webEngine = ['bing', 'so360', 'baidu', 'so360news'].includes(item.source);
+  const recency = (!item.tsKnown && webEngine) ? 4 : recencyBase;
   const corroborated = item.engineCount >= 2;
   const corr = corroborated ? 10 : item.engineCount === 1 && /bing|so360|baidu|duckduckgo/.test(item.source) ? -4 : 0;
   const engW = { twitter: 14, mock: 6, bing: 8, so360: 8, baidu: 6, duckduckgo: 8, bilibili: 8 }[item.source] ?? 8;
@@ -430,7 +474,7 @@ function parseArgv(argv) {
 
 async function collectAll(qs, withTwitter) {
   const items = [];
-  const engines = [searchBing, search360, searchBaidu];
+  const engines = [search360News, searchBing, search360, searchBaidu];
   for (const q of qs) {
     for (const fn of engines) {
       try { items.push(...(await fn(q))); } catch { /* engine failure: keep going */ }
@@ -443,7 +487,9 @@ async function collectAll(qs, withTwitter) {
     }
   }
   corroborate(items);
-  return uniqueByUrl(items);
+  // drop evergreen/navigational pages so they cannot pollute hot ranking
+  const EVERGREEN = /官网|首页|百科|词典|词条|维基|教程|入门|是什么|大全|合集|导航|工具集|一文读懂|指南|手册|正版|破解|在线工具|生成器/;
+  return uniqueByUrl(items).filter((it) => !EVERGREEN.test(String(it.title || '')));
 }
 
 async function runKeyword(kw, hours, limit, wantJson, forceMock, minEng) {
@@ -479,8 +525,12 @@ async function runTrend(scope, queries, hours, limit, wantJson, forceMock, minEn
     for (const q of qs) {
       if (String(it.title).toLowerCase().includes(q.toLowerCase())) kwHits++;
     }
-    return { ...it, ...heatOf(it, kwHits) };
-  }).sort((a, b) => b.heat - a.heat).slice(0, limit);
+    return { ...it, kwHits, ...heatOf(it, kwHits) };
+  })
+    // social/video sources have no query relevance guarantee -> require a hit
+    .filter((it) => !['bilibili', 'twitter'].includes(it.source) || it.kwHits > 0)
+    .sort((a, b) => b.heat - a.heat)
+    .slice(0, limit);
 
   return { tool: 'hot-monitor', action: 'trend', scope, mode: useMock ? 'mock' : 'openrouter', model: useMock ? null : MODEL, minEng, count: scored.length, items: scored };
 }

@@ -6,7 +6,7 @@ import { ic, logEvent, logErr, logDone } from './log.js';
 import { notify } from './notify.js';
 import { broadcast } from './bus.js';
 import { norm } from './sources/base.js';
-import { corroborate, normUrl } from './sources/corroborate.js';
+import { corroborate, normUrl, looksEvergreen, looksNewsy } from './sources/corroborate.js';
 import * as mockSource from './sources/mock.js';
 import * as websearch from './sources/websearch.js';
 import * as twitter from './sources/twitter.js';
@@ -93,8 +93,14 @@ export async function refreshTrend(manual = false) {
     const key = normUrl(it.url);
     if (seen.has(key)) continue;
     seen.add(key);
+    // 常青/导航页（官网/百科/教程/工具集…）不属于热点 -> 跳过
+    if (it.extra && it.extra.evergreen) continue;
+    // 无可靠发布时间的单源网页：仅当具备新闻特征(发布/上线/开源/年份…)才保留
+    const tmKnown = !(it.extra && it.extra.tsKnown === false);
+    const corr = !!(it.extra && it.extra.corroborated);
+    if (!tmKnown && !corr && !looksNewsy(it)) continue;
     // 低质域名（累计 >=2 次判假）且无多源交叉印证 -> 跳过
-    if (!(it.extra && it.extra.corroborated) && getDomainFakeHits(it.url) >= GREYLIST_HITS) continue;
+    if (!corr && getDomainFakeHits(it.url) >= GREYLIST_HITS) continue;
     it.extra = { ...(it.extra || {}), kwHits: kwHits.get(it.url) || 0 };
     uniq.push(it);
   }

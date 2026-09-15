@@ -6,7 +6,7 @@ import { ic, logEvent, logDone, logErr } from './log.js';
 import { notify } from './notify.js';
 import { broadcast } from './bus.js';
 import { norm } from './sources/base.js';
-import { corroborate, normUrl } from './sources/corroborate.js';
+import { corroborate, normUrl, looksNewsy } from './sources/corroborate.js';
 import * as mockSource from './sources/mock.js';
 import * as websearch from './sources/websearch.js';
 import * as twitter from './sources/twitter.js';
@@ -71,8 +71,13 @@ export async function scanKeyword(kw) {
     if (seenInBatch.has(key)) continue;
     seenInBatch.add(key);
     if (hasUrl.get(kw.id, it.url)) continue;
-    // 低质域名（累计 >=2 次判假）且无多源交叉印证 -> 跳过
+    // 常青/导航页（官网/百科/教程…）不属于新动态 -> 跳过
+    if (it.extra && it.extra.evergreen) continue;
     const corroborated = !!(it.extra && it.extra.corroborated);
+    const tmKnown = !(it.extra && it.extra.tsKnown === false);
+    // 无可靠发布时间的单源网页：仅当具备新闻特征才保留
+    if (!tmKnown && !corroborated && !looksNewsy(it)) continue;
+    // 低质域名（累计 >=2 次判假）且无多源交叉印证 -> 跳过
     if (!corroborated && getDomainFakeHits(it.url) >= GREYLIST_HITS) continue;
     fresh.push(it);
   }

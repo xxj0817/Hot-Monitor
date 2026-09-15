@@ -104,7 +104,7 @@ export function NotifDrawer({ open, notifications, unread, onClose, onRead, onRe
 }
 
 /* ---------------- 设置弹窗 ---------------- */
-const ENG_OPTIONS = [['bing', '必应 Bing'], ['so360', '360 搜索'], ['baidu', '百度(尽力)']];
+const ENG_OPTIONS = [['so360news', '360 资讯'], ['bing', '必应 Bing'], ['so360', '360 搜索'], ['baidu', '百度(尽力)']];
 
 export function SettingsModal({ open, settings, health, onClose, onSave }) {
   const [form, setForm] = useState(null);
@@ -112,7 +112,7 @@ export function SettingsModal({ open, settings, health, onClose, onSave }) {
 
   useEffect(() => {
     if (open && settings) {
-      const engs = settings.websearchEngines || ['bing', 'so360', 'baidu'];
+      const engs = settings.websearchEngines || ['so360news', 'bing', 'so360', 'baidu'];
       setForm({
         pollMinutes: settings.pollMinutes,
         model: settings.model,
@@ -128,6 +128,7 @@ export function SettingsModal({ open, settings, health, onClose, onSave }) {
         mock: settings.sourceToggles?.mock !== false,
         eng_bing: engs.includes('bing'),
         eng_so360: engs.includes('so360'),
+        eng_so360news: engs.includes('so360news'),
         eng_baidu: engs.includes('baidu'),
       });
       api.domains().then(setDomains).catch(() => setDomains([]));
@@ -145,7 +146,7 @@ export function SettingsModal({ open, settings, health, onClose, onSave }) {
       topTrends: Number(form.topTrends) || 12,
       twitterMinEngagement: Number(form.twitterMinEngagement) || 0,
       bilibiliMinPlay: Number(form.bilibiliMinPlay) || 0,
-      websearchEngines: ['bing', 'so360', 'baidu'].filter((k) => form['eng_' + k]),
+      websearchEngines: ['so360news', 'bing', 'so360', 'baidu'].filter((k) => form['eng_' + k]),
       scope: {
         name: String(form.scopeName).trim() || 'AI 编程',
         queries: String(form.queries).split(/\r?\n/).map((s) => s.trim()).filter(Boolean),

@@ -161,7 +161,7 @@ router.patch('/settings', (req, res) => {
     clean.bilibiliMinPlay = Math.max(0, Number(clean.bilibiliMinPlay) || 0);
   }
   if (clean.websearchEngines !== undefined) {
-    const known = ['bing', 'so360', 'baidu'];
+    const known = ['bing', 'so360', 'so360news', 'baidu'];
     clean.websearchEngines = (Array.isArray(clean.websearchEngines) ? clean.websearchEngines : [])
       .filter((e) => known.includes(e));
     if (!clean.websearchEngines.length) clean.websearchEngines = ['bing'];

@@ -1,51 +1,51 @@
-# Agent Skills äº¤ä»˜æŒ‡å—
+# Agent Skills ½»¸¶Ö¸ÄÏ
 
-æŠŠã€Œçƒ­ç‚¹ç›‘æŽ§ + AI çœŸä¼ªè¯†åˆ«ã€å°è£…ä¸ºå¯å¤ç”¨æŠ€èƒ½ï¼Œäº¤ç»™å…¶ä»– AI ä½¿ç”¨ã€‚
+°Ñ¡¸ÈÈµã¼à¿Ø + AI ÕæÎ±Ê¶±ð¡¹·â×°Îª¿É¸´ÓÃ¼¼ÄÜ£¬½»¸øÆäËû AI Ê¹ÓÃ¡£
 
-## 1. äº¤ä»˜ç‰©
+## 1. ½»¸¶Îï
 
 ```
 skills/hot-monitor/
-  SKILL.md      æŠ€èƒ½å…ƒä¿¡æ¯ + å®Œæ•´ä½¿ç”¨è¯´æ˜Žï¼ˆAI è‡ªåŠ¨é˜…è¯»ï¼‰
-  monitor.mjs   è‡ªåŒ…å« CLIï¼ˆæ— ç¬¬ä¸‰æ–¹ä¾èµ–ï¼ŒNode 18+ï¼Œå†…ç½® fetchï¼‰
+  SKILL.md      ¼¼ÄÜÔªÐÅÏ¢ + ÍêÕûÊ¹ÓÃËµÃ÷£¨AI ×Ô¶¯ÔÄ¶Á£©
+  monitor.mjs   ×Ô°üº¬ CLI£¨ÎÞµÚÈý·½ÒÀÀµ£¬Node 18+£¬ÄÚÖÃ fetch£©
 ```
 
-ä¸ä¾èµ–æœ¬ä»“åº“æœåŠ¡ç«¯/æ•°æ®åº“ï¼Œä»…éœ€ `.env`ï¼ˆæˆ–çŽ¯å¢ƒå˜é‡ï¼‰ä¸­çš„ OpenRouter Keyã€‚
+²»ÒÀÀµ±¾²Ö¿â·þÎñ¶Ë/Êý¾Ý¿â£¬½öÐè `.env`£¨»ò»·¾³±äÁ¿£©ÖÐµÄ OpenRouter Key¡£
 
-## 2. å®‰è£…åˆ°ç›®æ ‡ AI
+## 2. °²×°µ½Ä¿±ê AI
 
-å¤åˆ¶æ•´ä¸ª hot-monitor æ–‡ä»¶å¤¹åˆ°ç›®æ ‡æŠ€èƒ½ç›®å½•ï¼š
+¸´ÖÆÕû¸ö hot-monitor ÎÄ¼þ¼Ðµ½Ä¿±ê¼¼ÄÜÄ¿Â¼£º
 
-| AI å·¥å…· | ç›®å½• |
+| AI ¹¤¾ß | Ä¿Â¼ |
 |---|---|
 | Claude Code | `~/.claude/skills/hot-monitor/` |
 | Cursor | `.cursor/skills/hot-monitor/` |
-| VS Code Copilotï¼ˆæœ¬æœºï¼‰ | `C:\Users\<ä½ >\.agents\skills\hot-monitor\` |
-| å…¶ä»–å®žçŽ° | æŒ‰å…¶çº¦å®šæ”¾ç½®å« SKILL.md çš„ç›®å½• |
+| VS Code Copilot£¨±¾»ú£© | `C:\Users\<Äã>\.agents\skills\hot-monitor\` |
+| ÆäËûÊµÏÖ | °´ÆäÔ¼¶¨·ÅÖÃº¬ SKILL.md µÄÄ¿Â¼ |
 
-æ”¾ç½®åŽé‡å¯/é‡è½½å³å¯è¢«å‘çŽ°ã€‚**ä¿ç•™ UTF-8 ç¼–ç **ï¼ˆWindows å‹¿ç”¨ GBKï¼‰ã€‚
+·ÅÖÃºóÖØÆô/ÖØÔØ¼´¿É±»·¢ÏÖ¡£**±£Áô UTF-8 ±àÂë**£¨Windows ÎðÓÃ GBK£©¡£
 
-## 3. ä½¿ç”¨ç¤ºä¾‹ï¼ˆå¯¹ AI è¯´è¯è§¦å‘ï¼‰
+## 3. Ê¹ÓÃÊ¾Àý£¨¶Ô AI Ëµ»°´¥·¢£©
 
-- ã€Œå¸®æˆ‘ç›¯ç€ Claude æœ‰æ²¡æœ‰å¤§æ–°é—»ã€-> `node skills/hot-monitor/monitor.mjs keyword "Claude" --limit 8 --json`
-- ã€Œæœ€è¿‘ AI ç¼–ç¨‹åœˆæœ‰å•¥çƒ­ç‚¹ã€-> `node skills/hot-monitor/monitor.mjs trend "AI ç¼–ç¨‹" --queries "AI ç¼–ç¨‹,å¤§æ¨¡åž‹,coding agent,ai programming" --limit 10 --json`
+- ¡¸°ïÎÒ¶¢×Å Claude ÓÐÃ»ÓÐ´óÐÂÎÅ¡¹-> `node skills/hot-monitor/monitor.mjs keyword "Claude" --limit 8 --json`
+- ¡¸×î½ü AI ±à³ÌÈ¦ÓÐÉ¶ÈÈµã¡¹-> `node skills/hot-monitor/monitor.mjs trend "AI ±à³Ì" --queries "AI ±à³Ì,´óÄ£ÐÍ,coding agent,ai programming" --limit 10 --json`
 
-æ—  Key è‡ªåŠ¨ mock æ¼”ç¤ºï¼›`--mock` å¼ºåˆ¶ã€‚è§£è¯»è§„åˆ™è§ SKILL.mdï¼šä»… authentic/demo ä¸ºç¡®è®¤çœŸæ¶ˆæ¯ï¼Œfake è­¦ç¤ºï¼Œunverified è¡¨è¿°ä¸ºã€Œæœ‰è®¨è®ºä½†æœªè¯å®žã€ã€‚
+ÎÞ Key ×Ô¶¯ mock ÑÝÊ¾£»`--mock` Ç¿ÖÆ¡£½â¶Á¹æÔò¼û SKILL.md£º½ö authentic/demo ÎªÈ·ÈÏÕæÏûÏ¢£¬fake ¾¯Ê¾£¬unverified ±íÊöÎª¡¸ÓÐÌÖÂÛµ«Î´Ö¤Êµ¡¹¡£
 
-## 4. Key æ³¨å…¥
+## 4. Key ×¢Èë
 
-- `.env`ï¼ˆè„šæœ¬è‡ªåŠ¨å‘ä¸ŠæŸ¥æ‰¾ï¼‰æˆ–çŽ¯å¢ƒå˜é‡ `OPENROUTER_API_KEY`ã€‚
-- é»˜è®¤æ¨¡åž‹ nvidia/nemotron-3-super-120b-a12b:freeï¼Œå¯ç”¨ `HOT_MONITOR_MODEL` è¦†ç›–ã€‚
-- `TWITTER_API_KEY`ï¼ˆtwitterapi.ioï¼‰å¯é€‰ã€‚
+- `.env`£¨½Å±¾×Ô¶¯ÏòÉÏ²éÕÒ£©»ò»·¾³±äÁ¿ `OPENROUTER_API_KEY`¡£
+- Ä¬ÈÏÄ£ÐÍ nvidia/nemotron-3-super-120b-a12b:free£¬¿ÉÓÃ `HOT_MONITOR_MODEL` ¸²¸Ç¡£
+- `TWITTER_API_KEY`£¨twitterapi.io£©¿ÉÑ¡¡£
 
-## 5. å·²éªŒè¯ï¼ˆå®žæµ‹ï¼‰
+## 5. ÒÑÑéÖ¤£¨Êµ²â£©
 
-- keywordï¼šClaude å®˜æ–¹æ¥æºåˆ¤ authenticï¼Œé•œåƒç«™/è½¯å¹¿åˆ¤ fakeã€‚
-- trendï¼šæŠ“å–å½“æ—¥ Twitter è®¨è®ºå¹¶æŽ’ A çº§ï¼ŒBing/çŸ¥ä¹Žæ¥æºæ­£å¸¸ä¸Šæ¦œã€‚
-- mockï¼šæ— ç½‘/æ—  Key å¯å®Œæ•´æ¼”ç¤ºã€‚
+- keyword£ºClaude ¹Ù·½À´Ô´ÅÐ authentic£¬¾µÏñÕ¾/Èí¹ãÅÐ fake¡£
+- trend£º×¥È¡µ±ÈÕ Twitter ÌÖÂÛ²¢ÅÅ A ¼¶£¬Bing/ÖªºõÀ´Ô´Õý³£ÉÏ°ñ¡£
+- mock£ºÎÞÍø/ÎÞ Key ¿ÉÍêÕûÑÝÊ¾¡£
 
-## 6. æ³¨æ„äº‹é¡¹
+## 6. ×¢ÒâÊÂÏî
 
-- çˆ¬è™«å·²æŽ§é¢‘ï¼ˆ3s+ï¼‰ï¼Œå‹¿å¹¶å‘ï¼›å•æ¬¡ keyword çº¦ 20-60sã€‚
-- åˆ¤å®šåŸºäºŽæ ‡é¢˜/æ‘˜è¦/åŸŸåï¼Œé‡è¦ç»“è®ºé™„æ¥æºé“¾æŽ¥äººå·¥æ ¸å®žã€‚
-- ç›®æ ‡çŽ¯å¢ƒæ— æ³•è”ç½‘æ—¶ä»…èƒ½ --mockã€‚
+- ÅÀ³æÒÑ¿ØÆµ£¨3s+£©£¬Îð²¢·¢£»µ¥´Î keyword Ô¼ 20-60s¡£
+- ÅÐ¶¨»ùÓÚ±êÌâ/ÕªÒª/ÓòÃû£¬ÖØÒª½áÂÛ¸½À´Ô´Á´½ÓÈË¹¤ºËÊµ¡£
+- Ä¿±ê»·¾³ÎÞ·¨ÁªÍøÊ±½öÄÜ --mock¡£

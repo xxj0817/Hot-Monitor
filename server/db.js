@@ -83,7 +83,7 @@ CREATE TABLE IF NOT EXISTS domain_meta(
 
 export const now = () => new Date().toISOString();
 
-// è¿ç§»ï¼šæ—§ç‰ˆæœ¬ trends.credible ä¸º NOT NULLï¼Œæ”¾å¼€ä¸ºå¯ç©ºï¼ˆcredible=null è¡¨ç¤ºæœªéªŒè¯ï¼‰
+// Ç¨ÒÆ£º¾É°æ±¾ trends.credible Îª NOT NULL£¬·Å¿ªÎª¿É¿Õ£¨credible=null ±íÊ¾Î´ÑéÖ¤£©
 try {
   const col = db.prepare('PRAGMA table_info(trends)').all().find((c) => c.name === 'credible');
   if (col && col.notnull === 1) {
@@ -107,15 +107,15 @@ try {
         SELECT scope,title,url,source,summary,heat,level,credible,first_seen,updated_at FROM trends_old;
       DROP TABLE trends_old;
     `);
-    console.log('[db] è¿ç§»å®Œæˆï¼štrends.credible å·²æ”¾å¼€ä¸ºå¯ç©º');
+    console.log('[db] Ç¨ÒÆÍê³É£ºtrends.credible ÒÑ·Å¿ªÎª¿É¿Õ');
   }
 } catch (e) {
-  console.warn('[db] credible è¿ç§»å¤±è´¥ï¼ˆå¿½ç•¥ï¼‰:', e.message);
+  console.warn('[db] credible Ç¨ÒÆÊ§°Ü£¨ºöÂÔ£©:', e.message);
 }
 
-// å¯åŠ¨æ¸…ç†ï¼šæŠŠä¸Šæ¬¡å¼‚å¸¸é€€å‡ºé—ç•™çš„ running æ‰¹æ¬¡æ ‡è®°ä¸ºä¸­æ–­
+// Æô¶¯ÇåÀí£º°ÑÉÏ´ÎÒì³£ÍË³öÒÅÁôµÄ running Åú´Î±ê¼ÇÎªÖĞ¶Ï
 try {
-  db.prepare("UPDATE trend_runs SET status='interrupted', finished_at=?, note=COALESCE(note,'')||' (æœåŠ¡é‡å¯ä¸­æ–­)' WHERE status='running'").run(now());
+  db.prepare("UPDATE trend_runs SET status='interrupted', finished_at=?, note=COALESCE(note,'')||' (·şÎñÖØÆôÖĞ¶Ï)' WHERE status='running'").run(now());
 } catch { /* ignore */ }
 
 export function touchSource(name, { ok, count, error }) {
@@ -128,7 +128,7 @@ export function touchSource(name, { ok, count, error }) {
   ).run(name, ok ? now() : null, error ? String(error).slice(0, 300) : null, now(), count || 0);
 }
 
-// ---------- ä½è´¨åŸŸåè‡ªåŠ¨ç°åå• ----------
+// ---------- µÍÖÊÓòÃû×Ô¶¯»ÒÃûµ¥ ----------
 function hostOf(url) {
   try {
     return String(new URL(url).hostname).replace(/^www\./, '').toLowerCase();
@@ -137,7 +137,7 @@ function hostOf(url) {
   }
 }
 
-// ç´¯è®¡ä¸€æ¬¡â€œAI åˆ¤å®šä¸ºå‡â€è®°å½•åˆ°æ¥æºåŸŸåï¼›authentic=true æ—¶ç´¯è®¡å¯ä¿¡è®°å½•
+// ÀÛ¼ÆÒ»´Î¡°AI ÅĞ¶¨Îª¼Ù¡±¼ÇÂ¼µ½À´Ô´ÓòÃû£»authentic=true Ê±ÀÛ¼Æ¿ÉĞÅ¼ÇÂ¼
 export function bumpDomainFake(url, confirmed = false) {
   const host = hostOf(url);
   if (!host) return 0;
@@ -152,7 +152,7 @@ export function bumpDomainFake(url, confirmed = false) {
   return getDomainFakeHits(url);
 }
 
-// è¯»å–æŸåŸŸåç°åå•å‘½ä¸­æ•°ï¼ˆ>= GREYLIST_HITS å³è§†ä¸ºä½è´¨åŸŸåï¼‰
+// ¶ÁÈ¡Ä³ÓòÃû»ÒÃûµ¥ÃüÖĞÊı£¨>= GREYLIST_HITS ¼´ÊÓÎªµÍÖÊÓòÃû£©
 export function getDomainFakeHits(url) {
   const host = hostOf(url);
   if (!host) return 0;

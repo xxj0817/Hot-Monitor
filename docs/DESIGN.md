@@ -1,61 +1,61 @@
-# Hot-Monitor çƒ­ç‚¹é›·è¾¾ - è®¾è®¡æ–¹æ¡ˆ
+# Hot-Monitor ÈÈµãÀ×´ï - Éè¼Æ·½°¸
 
-> ç‰ˆæœ¬ v2.1 | 2026-09 | React+Vite+Tailwind / Express / SQLite / 30 åˆ†é’Ÿé¢‘ç‡
+> °æ±¾ v2.1 | 2026-09 | React+Vite+Tailwind / Express / SQLite / 30 ·ÖÖÓÆµÂÊ
 
-## 1. æ€»ä½“æ¶æ„
+## 1. ×ÜÌå¼Ü¹¹
 
 ```
-[è°ƒåº¦å™¨(æ¯30min)] -> [å…³é”®è¯å“¨å…µ watcher.js] ---> [OpenRouter AI judge]
-                  -> [çƒ­ç‚¹é›·è¾¾ trend.js] -------> [OpenRouter refine/rank]
+[µ÷¶ÈÆ÷(Ã¿30min)] -> [¹Ø¼ü´ÊÉÚ±ø watcher.js] ---> [OpenRouter AI judge]
+                  -> [ÈÈµãÀ×´ï trend.js] -------> [OpenRouter refine/rank]
                                           |
-   å¤šä¿¡æºé€‚é…å±‚: Bingçˆ¬è™« / DuckDuckGo / Twitter(twitterapi.io) / Mockæ¼”ç¤ºæº
+   ¶àĞÅÔ´ÊÊÅä²ã: BingÅÀ³æ / DuckDuckGo / Twitter(twitterapi.io) / MockÑİÊ¾Ô´
                                           v
-                        SQLite(better-sqlite3)  <-  Express API + SSE  ->  React æƒ…æŠ¥å°
+                        SQLite(better-sqlite3)  <-  Express API + SSE  ->  React Çé±¨Ì¨
 ```
 
-## 2. ç›®å½•ç»“æ„
+## 2. Ä¿Â¼½á¹¹
 
 ```
 server/   index.js  config.js  db.js  scheduler.js  bus.js  notify.js
           ai.js  watcher.js  trend.js  api.js
           sources/  base.js  websearch.js  twitter.js  mock.js
 client/   index.html  vite.config.js  src/(main.jsx App.jsx index.css lib/api.js components/*)
-skills/hot-monitor/   SKILL.md + monitor.mjsï¼ˆè‡ªåŒ…å« CLIï¼‰
+skills/hot-monitor/   SKILL.md + monitor.mjs£¨×Ô°üº¬ CLI£©
 docs/     REQUIREMENTS / DESIGN / API-INTEGRATION / SKILLS-GUIDE
-tools/    enc.ps1ï¼ˆGBK<->UTF-8ï¼‰ repair.ps1ï¼ˆä¹±ç åè½¬ï¼‰ probe.mjsï¼ˆæ¨¡å‹æ¢æµ‹ï¼‰
-data/     hotmonitor.db + settings.jsonï¼ˆgit å¿½ç•¥ï¼‰
+tools/    enc.ps1£¨GBK<->UTF-8£© repair.ps1£¨ÂÒÂë·´×ª£© probe.mjs£¨Ä£ĞÍÌ½²â£©
+data/     hotmonitor.db + settings.json£¨git ºöÂÔ£©
 ```
 
-## 3. æ•°æ®æ¨¡å‹ï¼ˆSQLiteï¼‰
+## 3. Êı¾İÄ£ĞÍ£¨SQLite£©
 
 - keywords(id,name unique,enabled,created_at,last_scan_at)
 - signals(id,keyword_id,title,url,source,summary,author,score,related,authentic,verdict,reason,seen_at,read, UNIQUE(keyword_id,url))
-- trends(id,scope,title,url,source,summary,heat,level,credible å¯ç©º,first_seen,updated_at, UNIQUE(scope,url))
+- trends(id,scope,title,url,source,summary,heat,level,credible ¿É¿Õ,first_seen,updated_at, UNIQUE(scope,url))
 - trend_runs(id,scope,started_at,finished_at,status,items,note)
 - notifications(id,type,title,body,payload,created_at,read)
 - source_meta(source,last_ok,last_error,last_run_at,last_count)
 
-å¯åŠ¨è‡ªåŠ¨è¿ç§»ï¼ˆtrends.credible æ”¾å¼€å¯ç©ºï¼‰ä¸æ¸…ç†æ®‹ç•™ running æ‰¹æ¬¡ã€‚
+Æô¶¯×Ô¶¯Ç¨ÒÆ£¨trends.credible ·Å¿ª¿É¿Õ£©ÓëÇåÀí²ĞÁô running Åú´Î¡£
 
-## 4. AI ç¼–æ’ï¼ˆOpenRouterï¼‰
+## 4. AI ±àÅÅ£¨OpenRouter£©
 
-- `POST https://openrouter.ai/api/v1/chat/completions`ï¼ŒBearer Keyï¼›é»˜è®¤æ¨¡å‹ nvidia/nemotron-3-super-120b-a12b:freeã€‚
+- `POST https://openrouter.ai/api/v1/chat/completions`£¬Bearer Key£»Ä¬ÈÏÄ£ĞÍ nvidia/nemotron-3-super-120b-a12b:free¡£
 - judge: {related, authentic, score, verdict(authentic/fake/unrelated/unverified), reason}
-- refine: å»é‡/æç‚¼/å¯ä¿¡åº¦ï¼›rank: heat(0-100)+level(S/A/B/C)ã€‚
-- JSON çº¦æŸï¼ˆresponse_formatï¼Œå¤±è´¥è‡ªåŠ¨å»æ‰é‡è¯•ï¼‰ï¼›å¤±è´¥/æ—  Key -> æœ¬åœ°è§„åˆ™é™çº§ï¼ˆæ ‡è®° unverifiedï¼Œä¸è¯¯æŠ¥"çœŸ"ï¼‰ã€‚
+- refine: È¥ÖØ/ÌáÁ¶/¿ÉĞÅ¶È£»rank: heat(0-100)+level(S/A/B/C)¡£
+- JSON Ô¼Êø£¨response_format£¬Ê§°Ü×Ô¶¯È¥µôÖØÊÔ£©£»Ê§°Ü/ÎŞ Key -> ±¾µØ¹æÔò½µ¼¶£¨±ê¼Ç unverified£¬²»Îó±¨"Õæ"£©¡£
 
-## 5. å¤šä¿¡æº
+## 5. ¶àĞÅÔ´
 
-| é€‚é…å™¨ | æ–¹å¼ | Key | é¢‘æ§ |
+| ÊÊÅäÆ÷ | ·½Ê½ | Key | Æµ¿Ø |
 |---|---|---|---|
-| websearch(Bing) | HTML è§£æ | æ—  | 4~8s/æŸ¥è¯¢ï¼Œéšæœº UA |
-| websearch(DDG) | HTML è§£æ | æ—  | å¤‡ç”¨å¼•æ“ï¼Œå¤±è´¥é™é»˜ |
-| twitter | twitterapi.io advanced_search | TWITTER_API_KEY | æ¯è¯ 1 è¯·æ±‚ |
-| mock | å†…ç½®æ ·ä¾‹ | æ—  | - |
+| websearch(Bing) | HTML ½âÎö | ÎŞ | 4~8s/²éÑ¯£¬Ëæ»ú UA |
+| websearch(DDG) | HTML ½âÎö | ÎŞ | ±¸ÓÃÒıÇæ£¬Ê§°Ü¾²Ä¬ |
+| twitter | twitterapi.io advanced_search | TWITTER_API_KEY | Ã¿´Ê 1 ÇëÇó |
+| mock | ÄÚÖÃÑùÀı | ÎŞ | - |
 
-## 6. é€šçŸ¥/å®æ—¶
+## 6. Í¨Öª/ÊµÊ±
 
-notify.js å…¥åº“ + SSE å¹¿æ’­ï¼ˆsignal.new/trend.new/scan.done/notice/source.statusï¼‰ï¼›å‰ç«¯ toast + æ¡Œé¢é€šçŸ¥ã€‚æ¸ é“é€‚é…å±‚é¢„ç•™ã€‚
+notify.js Èë¿â + SSE ¹ã²¥£¨signal.new/trend.new/scan.done/notice/source.status£©£»Ç°¶Ë toast + ×ÀÃæÍ¨Öª¡£ÇşµÀÊÊÅä²ãÔ¤Áô¡£
 
 ## 7. REST API
 
@@ -65,29 +65,29 @@ GET /notifications + PATCH read + read-all | PATCH /settings | GET /meta/sources
 POST /jobs/watch /jobs/trend | GET /events (SSE)
 ```
 
-## 8. å‰ç«¯è®¾è®¡ï¼ˆæƒ…æŠ¥ä¿¡å·ç›‘è§†å°ï¼‰
+## 8. Ç°¶ËÉè¼Æ£¨Çé±¨ĞÅºÅ¼àÊÓÌ¨£©
 
-æ·±è‰²"æƒ…æŠ¥ç»ˆç«¯ x ç²—é‡ä¸»ä¹‰"ï¼šé”è§’ç²—è¾¹æ¡†ã€ç­‰å®½å­—ä½“ã€ä¿¡å·ç»¿/å‘Šè­¦ç¥ç€/å¨èƒçº¢ã€é›·è¾¾ LOGOã€æƒ…æŠ¥è·‘é©¬ç¯ã€ä¿¡å·ç¯åˆ¤å®šåˆ—è¡¨ã€çƒ­åŠ›ç¼–å·æ¦œã€é€šçŸ¥æŠ½å±‰ + Toast + æ¡Œé¢é€šçŸ¥ï¼›Tailwind v4ï¼ˆ@tailwindcss/vite + @import "tailwindcss"ï¼‰ï¼Œå“åº”å¼ç§»åŠ¨ç«¯å•åˆ—ã€‚
+ÉîÉ«"Çé±¨ÖÕ¶Ë x ´ÖÒ°Ö÷Òå"£ºÈñ½Ç´Ö±ß¿ò¡¢µÈ¿í×ÖÌå¡¢ĞÅºÅÂÌ/¸æ¾¯çúçê/ÍşĞ²ºì¡¢À×´ï LOGO¡¢Çé±¨ÅÜÂíµÆ¡¢ĞÅºÅµÆÅĞ¶¨ÁĞ±í¡¢ÈÈÁ¦±àºÅ°ñ¡¢Í¨Öª³éÌë + Toast + ×ÀÃæÍ¨Öª£»Tailwind v4£¨@tailwindcss/vite + @import "tailwindcss"£©£¬ÏìÓ¦Ê½ÒÆ¶¯¶Ëµ¥ÁĞ¡£
 
-## 9. Agent Skillsï¼ˆå·²äº¤ä»˜ï¼‰
+## 9. Agent Skills£¨ÒÑ½»¸¶£©
 
-skills/hot-monitor/SKILL.md + monitor.mjsï¼škeyword/trend ä¸¤æ¨¡å¼ã€--json/--mockã€è¯»å– .env Keyï¼›å®‰è£…æ–¹æ³•è§ docs/SKILLS-GUIDE.mdã€‚
+skills/hot-monitor/SKILL.md + monitor.mjs£ºkeyword/trend Á½Ä£Ê½¡¢--json/--mock¡¢¶ÁÈ¡ .env Key£»°²×°·½·¨¼û docs/SKILLS-GUIDE.md¡£
 
-## 10. é‡Œç¨‹ç¢‘ï¼ˆM1-M8 å…¨éƒ¨å®Œæˆå¹¶å®æµ‹ï¼‰
+## 10. Àï³Ì±®£¨M1-M8 È«²¿Íê³É²¢Êµ²â£©
 
-éª¨æ¶ -> ä¿¡æº+AI -> å“¨å…µ+é€šçŸ¥ -> çƒ­ç‚¹é›·è¾¾ -> å‰ç«¯æˆç¨¿ -> æµ‹è¯•ï¼ˆå« credible è¿ç§»ã€ç¼–ç æŸåä¿®å¤ï¼‰-> Skills -> éªŒæ”¶äº¤ä»˜ã€‚
+¹Ç¼Ü -> ĞÅÔ´+AI -> ÉÚ±ø+Í¨Öª -> ÈÈµãÀ×´ï -> Ç°¶Ë³É¸å -> ²âÊÔ£¨º¬ credible Ç¨ÒÆ¡¢±àÂëËğ»µĞŞ¸´£©-> Skills -> ÑéÊÕ½»¸¶¡£
 
-## 11. å¯åŠ¨
+## 11. Æô¶¯
 
 ```
 npm install
-copy .env.example .env   # å¡«å…¥ OPENROUTER_API_KEYï¼ˆTWITTER_API_KEY å¯é€‰ï¼‰
-npm run dev              # å¼€å‘ http://localhost:5173
-npm run build && npm start  # ç”Ÿäº§ http://localhost:3000
+copy .env.example .env   # ÌîÈë OPENROUTER_API_KEY£¨TWITTER_API_KEY ¿ÉÑ¡£©
+npm run dev              # ¿ª·¢ http://localhost:5173
+npm run build && npm start  # Éú²ú http://localhost:3000
 ```
 
-## 12. å·²çŸ¥ç¯å¢ƒçº¦æŸï¼ˆWindows ä¸­æ–‡æœºï¼‰
+## 12. ÒÑÖª»·¾³Ô¼Êø£¨Windows ÖĞÎÄ»ú£©
 
-- å·¥å…·å†™ç›˜ GBKã€Node/Vite éœ€ UTF-8ï¼šç¼–è¾‘å‰ enc.ps1 -Mode Toolï¼Œè¿è¡Œå‰ -Mode Nodeã€‚
-- æºç ç¦ emoji/GBK å¤–å­—ç¬¦ï¼›å¤–éƒ¨å·¥å…·åå¤é”™è¯¯ä¿å­˜ä¼šè‡´ä¹±ç /æ›¿æ¢ç¬¦ï¼ˆä¸å¯é€†æ—¶æ•´æ–‡ä»¶é‡å»ºï¼‰ã€‚
-- å…è´¹æ¨¡å‹å…±äº«é™æµå¶å‘ 429ï¼ˆç¨å€™é‡è¯•ï¼‰ï¼›ä»˜è´¹æ¨¡å‹éœ€è´¦å·ä½™é¢ï¼ˆ402ï¼‰ã€‚
+- ¹¤¾ßĞ´ÅÌ GBK¡¢Node/Vite Ğè UTF-8£º±à¼­Ç° enc.ps1 -Mode Tool£¬ÔËĞĞÇ° -Mode Node¡£
+- Ô´Âë½û emoji/GBK Íâ×Ö·û£»Íâ²¿¹¤¾ß·´¸´´íÎó±£´æ»áÖÂÂÒÂë/Ìæ»»·û£¨²»¿ÉÄæÊ±ÕûÎÄ¼şÖØ½¨£©¡£
+- Ãâ·ÑÄ£ĞÍ¹²ÏíÏŞÁ÷Å¼·¢ 429£¨ÉÔºòÖØÊÔ£©£»¸¶·ÑÄ£ĞÍĞèÕËºÅÓà¶î£¨402£©¡£

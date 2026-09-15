@@ -172,6 +172,7 @@ export async function refine(items, scopeName) {
   if (list.length <= 3) return fallback();
   if (!aiConfigured()) return fallback();
   const system = `你是信息聚合助手。以下是某领域 ${scopeName} 的候选资讯，请：去掉完全重复或低质量(广告/无关)条目；为保留下来的条目给出更精炼的中文标题与一句话摘要，并评估可信度 credible(0到1)。注意：被多个独立信源同时报道(engineCount>=2)的条目可信度应偏高；仅单一信源、疑似营销或小道消息的要给低值。
+**时效硬性要求：剔除过时与常青内容（官网首页、百科词条、教程指南、工具合集、旧版本发布、旧闻重发、泛泛科普），只保留近期新动态或确有新进展的条目；对 ts_known=false（无可靠发布时间）且明显是常青/科普/旧闻的条目剔除，但标题含发布/上线/开源/宣布/泄露等新闻特征的可保留。**
 仅输出 JSON：{"items":[{"url":"原样保留的url","title":"新标题","summary":"一句话摘要","credible":0.0-1.0}]}。只保留有把握的，最多输出 12 条。`;
   const user = JSON.stringify(
     list.slice(0, 25).map((it) => ({
@@ -181,6 +182,8 @@ export async function refine(items, scopeName) {
       source: it.source,
       engineCount: (it.extra && it.extra.engineCount) || 1,
       corroborated: !!(it.extra && it.extra.corroborated),
+      ts_known: !(it.extra && it.extra.tsKnown === false),
+      publishedAt: it.publishedAt || '',
     }))
   );
   try {
@@ -209,11 +212,12 @@ export async function rank(items, scopeName) {
   if (!aiConfigured() || items.length === 0) {
     return items.map(heuristic);
   }
-  const system = `你是热点分析师。对领域「${scopeName}」的候选热点条目打分（0-100 整数 heat，综合时效性/影响力/讨论度/可信度）并分级 level：S=爆炸性大瓜(>=75)，A=高热度(>=55)，B=有热度(>=35)，C=一般。被多个独立信源同时报道(条目含 crossSources>=2)或互动量高的给更高分，仅单一信源的要保守。为每条给一句话中文摘要。
+  const system = `你是热点分析师。对领域「${scopeName}」的候选热点条目打分（0-100 整数 heat，综合时效性/影响力/讨论度/可信度）并分级 level：S=爆炸性大瓜(>=75)，A=高热度(>=55)，B=有热度(>=35)，C=一般。被多个独立信源同时报道(条目含 crossSources>=2)或互动量高的给更高分，仅单一信源的要保守。**时效优先：ts_known=false（无可靠发布时间）或明显过时/常青的条目给低 heat(<=30)。** 为每条给一句话中文摘要。
 仅输出 JSON：{"items":[{"url":"...","heat":数字,"level":"S|A|B|C","summary":"..."}]}`;
   const user = JSON.stringify(items.map((it) => ({
     url: it.url, title: it.title, source: it.source,
     ts: it.publishedAt,
+    ts_known: !(it.extra && it.extra.tsKnown === false),
     crossSources: (it.extra && it.extra.engineCount) || 1,
     social: it.extra ? { like: it.extra.likeCount || 0, rt: it.extra.retweetCount || 0, reply: it.extra.replyCount || 0 } : null,
   })));
@@ -255,11 +259,17 @@ export function toLevel(heat) {
 }
 
 export function heuristic(item) {
+  // evergreen pages should never rank as hot news
+  if (item.extra && item.extra.evergreen) {
+    return { ...item, heat: 1, level: 'C', summary: item.summary || '' };
+  }
   let ageH = 99;
   try {
     ageH = (Date.now() - Date.parse(item.publishedAt)) / 3600000;
   } catch { /* keep */ }
-  const recency = ageH <= 6 ? 40 : ageH <= 24 ? 26 : ageH <= 72 ? 12 : 5;
+  // unknown publish time cannot be trusted as "fresh" -> heavy penalty
+  const tsKnown = !(item.extra && item.extra.tsKnown === false);
+  const recency = !tsKnown ? 3 : ageH <= 6 ? 40 : ageH <= 24 ? 26 : ageH <= 72 ? 12 : 5;
   const cred = item.credible === 1 ? 30 : item.credible === null ? 15 : 0;
   // 多引擎交叉印证加分；仅单信源的网页条目不加分（相当于降权）
   const extra = item.extra || {};

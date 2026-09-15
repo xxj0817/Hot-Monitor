@@ -1,44 +1,46 @@
-# API å¯¹æ¥ä¸æŠ€æœ¯å®ç°å¤‡å¿˜ï¼ˆMCP å®æ—¶æŸ¥è¯ 2026-09ï¼‰
+# API ¶Ô½ÓÓë¼¼ÊõÊµÏÖ±¸Íü£¨MCP ÊµÊ±²éÖ¤ 2026-09£©
 
-> å¼€å‘å‰é€šè¿‡ MCP/å®˜æ–¹æ–‡æ¡£å®æ—¶æŸ¥è¯çš„æœ€æ–°æ¥å…¥æ–¹å¼ï¼Œé˜²æ­¢ç”¨è¿‡æ—¶ä»£ç ã€‚
+> ¿ª·¢Ç°Í¨¹ı MCP/¹Ù·½ÎÄµµÊµÊ±²éÖ¤µÄ×îĞÂ½ÓÈë·½Ê½£¬·ÀÖ¹ÓÃ¹ıÊ±´úÂë¡£
 
-## 1. OpenRouterï¼ˆAIï¼‰
+## 1. OpenRouter£¨AI£©
 
-- ç«¯ç‚¹ `POST https://openrouter.ai/api/v1/chat/completions`ï¼ˆOpenAI å…¼å®¹ï¼‰ï¼Œå¤´ `Authorization: Bearer <KEY>`ã€‚
-- å¯é€‰è¿½è¸ªå¤´ HTTP-Referer / X-OpenRouter-Titleï¼›åŸç”Ÿ fetch å³å¯ã€‚
-- æ¨¡å‹æŒ‰ slugï¼›`GET /api/v1/models` åˆ—å…¨éƒ¨ï¼ˆå« :freeï¼‰ã€‚
-- é»˜è®¤ nvidia/nemotron-3-super-120b-a12b:freeï¼ˆå…è´¹æ¡£å®æµ‹å¯ç”¨ï¼‰ï¼›ä»˜è´¹æ¨¡å‹éœ€è´¦å·ä½™é¢å¦åˆ™ 402ã€‚
-- Key è·å–ï¼šopenrouter.ai æ³¨å†Œ -> Keysã€‚
+- ¶Ëµã `POST https://openrouter.ai/api/v1/chat/completions`£¨OpenAI ¼æÈİ£©£¬Í· `Authorization: Bearer <KEY>`¡£
+- ¿ÉÑ¡×·×ÙÍ· HTTP-Referer / X-OpenRouter-Title£»Ô­Éú fetch ¼´¿É¡£
+- Ä£ĞÍ°´ slug£»`GET /api/v1/models` ÁĞÈ«²¿£¨º¬ :free£©¡£
+- Ä¬ÈÏ nvidia/nemotron-3-super-120b-a12b:free£¨Ãâ·ÑµµÊµ²â¿ÉÓÃ£©£»¸¶·ÑÄ£ĞÍĞèÕËºÅÓà¶î·ñÔò 402¡£
+- Key »ñÈ¡£ºopenrouter.ai ×¢²á -> Keys¡£
 
-## 2. twitterapi.ioï¼ˆTwitter/Xï¼‰
+## 2. twitterapi.io£¨Twitter/X£©
 
-- ç¬¬ä¸‰æ–¹ X APIï¼Œæ— éœ€å®˜æ–¹å®¡æ ¸ï¼›å…è´¹ $0.1 èµ·ã€æŒ‰é‡ $0.15/åƒæ¡ã€‚
-- å¤´ `x-api-key: <KEY>`ï¼›Base `https://api.twitterapi.io`ã€‚
-- Advanced Searchï¼š`GET /twitter/tweet/advanced_search?queryType=Latest&query=<expr>`ï¼Œquery æ—¶é—´è¿‡æ»¤ç”¨ `since_time`/`until_time`ï¼ˆUnix ç§’ï¼‰ï¼Œä¸æ”¯æŒ `since:YYYY-MM-DD...`ï¼›å“åº” `{tweets:[],has_next_page}`ï¼Œæ¯é¡µæœ€å¤š 20 æ¡ã€‚
-- Tweet å­—æ®µé˜²å¾¡æ€§è§£æï¼ˆid/text/full_text/user.username/created_at/like_count å‡å¯å˜ï¼‰ã€‚
-- å®˜æ–¹å¦æœ‰ MCP/skillï¼ˆkaitoInfra/twitterapi-ioï¼‰å¯å‚è€ƒã€‚
+- µÚÈı·½ X API£¬ÎŞĞè¹Ù·½ÉóºË£»Ãâ·Ñ $0.1 Æğ¡¢°´Á¿ $0.15/Ç§Ìõ¡£
+- Í· `x-api-key: <KEY>`£»Base `https://api.twitterapi.io`¡£
+- Advanced Search£º`GET /twitter/tweet/advanced_search?queryType=Latest&query=<expr>`£¬query Ê±¼ä¹ıÂËÓÃ `since_time`/`until_time`£¨Unix Ãë£©£¬²»Ö§³Ö `since:YYYY-MM-DD...`£»ÏìÓ¦ `{tweets:[],has_next_page}`£¬Ã¿Ò³×î¶à 20 Ìõ¡£
+- Tweet ×Ö¶Î·ÀÓùĞÔ½âÎö£¨id/text/full_text/user.username/created_at/like_count ¾ù¿É±ä£©¡£
+- ¹Ù·½ÁíÓĞ MCP/skill£¨kaitoInfra/twitterapi-io£©¿É²Î¿¼¡£
 
-## 3. æ—  API ç½‘é¡µæœç´¢
+## 3. ÎŞ API ÍøÒ³ËÑË÷
 
-- Bingï¼š`https://www.bing.com/search?q=..&count=15&setlang=zh-hans&mkt=zh-CN`ï¼Œè§£æ `li.b_algo`ã€‚
-- DDG htmlï¼š`https://html.duckduckgo.com/html/?q=..`ï¼Œè§£æ `a.result__a`ï¼ˆuddg è¿˜åŸï¼‰ï¼Œå¤‡ç”¨+é™é»˜å¤±è´¥ã€‚
-- ä¸²è¡Œ + 4~8s é—´éš” + éšæœº UA + 15s è¶…æ—¶ï¼›è§£æå¤±è´¥ä¸æŠ›é”™ã€‚
+- Bing£º`https://www.bing.com/search?q=..&count=15&setlang=zh-hans&mkt=zh-CN&qft=+filterui:age-lt1440`£¬½âÎö `li.b_algo`£¬ÓĞÔòÈ¡ `news_dt` ×÷·¢²¼Ê±¼ä¡£
+- 360×ÊÑ¶£¨ĞÂÏÊ¶ÈÖ÷Á¦£¬´ø·¢²¼Ê±¼ä£©£º`https://news.so.com/ns?q=..&sort=1`£¬½âÎö `li.full-txt.res-list`£¨`data-url` ÕæÊµÁ´½Ó¡¢`h3.g-title` ±êÌâ¡¢`p.summary` ÕªÒª¡¢`span.time` Èç¡°6Ğ¡Ê±Ç°¡±/ÈÕÆÚ£©¡£
+- 360ËÑË÷£º`https://www.so.com/s?q=..&rn=10`£¬½âÎö `li.res-list` µÄ `data-mdurl` ÕæÊµÁ´½Ó¡£
+- °Ù¶È(best-effort)£º`https://www.baidu.com/s?wd=..&rn=10`£¬½âÎö `content_left` µÄ `h3.c-title`£»³öÏÖ°²È«ÑéÖ¤¼´×Ô¶¯½µ¼¶¡£
+- ´®ĞĞ + 4~8s ¼ä¸ô + Ëæ»ú UA + 15s ³¬Ê±£»½âÎöÊ§°Ü²»Å×´í¡£
 
 ## 4. Tailwind CSS v4 + Vite
 
-- `tailwindcss @tailwindcss/vite`ï¼›vite.config åŠ  tailwindcss() æ’ä»¶ï¼›CSS `@import "tailwindcss";` å–ä»£æ—§ directivesï¼›@theme ç”Ÿæˆ utilityã€‚
+- `tailwindcss @tailwindcss/vite`£»vite.config ¼Ó tailwindcss() ²å¼ş£»CSS `@import "tailwindcss";` È¡´ú¾É directives£»@theme Éú³É utility¡£
 
 ## 5. Express 5 + better-sqlite3
 
-- Express 5 ç¨³å®šç‰ˆç”¨æ³•å…¼å®¹ v4ï¼ˆjson/static/listenï¼‰ï¼›better-sqlite3 åŒæ­¥ API + WAL + äº‹åŠ¡ï¼›Windows é¢„ç¼–è¯‘äºŒè¿›åˆ¶ã€‚
+- Express 5 ÎÈ¶¨°æÓÃ·¨¼æÈİ v4£¨json/static/listen£©£»better-sqlite3 Í¬²½ API + WAL + ÊÂÎñ£»Windows Ô¤±àÒë¶ş½øÖÆ¡£
 
-## 6. ä¾èµ–ç‰ˆæœ¬ï¼ˆå®æµ‹å®‰è£… 2026-09ï¼‰
+## 6. ÒÀÀµ°æ±¾£¨Êµ²â°²×° 2026-09£©
 
-- express 5.2 / better-sqlite3 13 / dotenv 17ï¼›react 19.2 / vite 8 / @vitejs/plugin-react 6 / tailwindcss 4.3 / concurrently 10ã€‚Node v24ã€‚
+- express 5.2 / better-sqlite3 13 / dotenv 17£»react 19.2 / vite 8 / @vitejs/plugin-react 6 / tailwindcss 4.3 / concurrently 10¡£Node v24¡£
 
-## 7. æœ¬æœºç¼–ç ç¯å¢ƒå¤‡å¿˜ï¼ˆé‡è¦ï¼‰
+## 7. ±¾»ú±àÂë»·¾³±¸Íü£¨ÖØÒª£©
 
-- Windows ä¸­æ–‡ localeï¼šå·¥å…·å†™ç›˜ GBKï¼ŒNode/Vite æœŸæœ› UTF-8ã€‚
-- enc.ps1ï¼šç¼–è¾‘å‰ -Mode Toolï¼ˆGBKï¼‰ï¼Œè¿è¡Œå‰ -Mode Nodeï¼ˆUTF-8ï¼‰ã€‚
-- æºç åªç”¨ ASCII + å¸¸ç”¨æ±‰å­— + GBK ä¸­æ–‡æ ‡ç‚¹ï¼›ç¦ emojiã€‚
-- æ–‡ä»¶è¢«å¤–éƒ¨å·¥å…·åå¤é”™è¯¯ä¿å­˜ä¼šå‡ºç°ä¹±ç ä¸ ?/U+FFFDï¼ˆéƒ¨åˆ†ä¸å¯é€†ï¼‰ï¼šrepair.ps1 åè½¬å¯é€†éƒ¨åˆ†ï¼Œä»£ç ç»“æ„æŸåï¼ˆå¦‚å¼•å·ä¸¢å¤±ï¼‰éœ€æ•´æ–‡ä»¶é‡å»ºã€‚
+- Windows ÖĞÎÄ locale£º¹¤¾ßĞ´ÅÌ GBK£¬Node/Vite ÆÚÍû UTF-8¡£
+- enc.ps1£º±à¼­Ç° -Mode Tool£¨GBK£©£¬ÔËĞĞÇ° -Mode Node£¨UTF-8£©¡£
+- Ô´ÂëÖ»ÓÃ ASCII + ³£ÓÃºº×Ö + GBK ÖĞÎÄ±êµã£»½û emoji¡£
+- ÎÄ¼ş±»Íâ²¿¹¤¾ß·´¸´´íÎó±£´æ»á³öÏÖÂÒÂëÓë ?/U+FFFD£¨²¿·Ö²»¿ÉÄæ£©£ºrepair.ps1 ·´×ª¿ÉÄæ²¿·Ö£¬´úÂë½á¹¹Ëğ»µ£¨ÈçÒıºÅ¶ªÊ§£©ĞèÕûÎÄ¼şÖØ½¨¡£

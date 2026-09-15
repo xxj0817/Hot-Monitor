@@ -46,6 +46,97 @@ function bucketOf(it) {
   const s = String((it && it.source) || '');
   return s === 'twitter' || s === 'mock' || !s ? s || '?' : s;
 }
+// ---- evergreen / navigational detection -------------------------------
+// Evergreen pages (official homepages, wiki/baike entries, tutorials, tool
+// directories) look "fresh" to search engines but are NOT news. Flagging them
+// lets the hot-trend ranking exclude stale clutter.
+// CJK words are written as escapes so this file stays pure ASCII.
+const EVERGREEN_WORDS = [
+  '\u5b98\u7f51', // 官网
+  '\u9996\u9875', // 首页
+  '\u767e\u79d1', // 百科
+  '\u8bcd\u5178', // 词典
+  '\u8bcd\u6761', // 词条
+  '\u7ef4\u57fa', // 维基
+  '\u6559\u7a0b', // 教程
+  '\u5165\u95e8', // 入门
+  '\u662f\u4ec0\u4e48', // 是什么
+  '\u5927\u5168', // 大全
+  '\u5408\u96c6', // 合集
+  '\u5bfc\u822a', // 导航
+  '\u5de5\u5177\u96c6', // 工具集
+  '\u4e00\u6587\u8bfb\u61c2', // 一文读懂
+  '\u4e00\u6b21\u641e\u61c2', // 一次搞懂
+  '\u6307\u5357', // 指南
+  '\u624b\u518c', // 手册
+  '\u4e0b\u8f7d\u4e2d\u5fc3', // 下载中心
+  '\u6392\u884c\u699c', // 排行榜
+  '\u6b63\u7248', // 正版
+  '\u7834\u89e3', // 破解
+  '\u5728\u7ebf\u5de5\u5177', // 在线工具
+  '\u751f\u6210\u5668', // 生成器
+  '\u7eaf\u51c0\u7248', // 纯净版
+];
+const EVERGREEN_HOSTS = [
+  'baike.baidu.com', 'baike.so.com', 'baike.sogou.com',
+  'zh.wikipedia.org', 'en.wikipedia.org', 'wikiwand.com',
+  'runoob.com', 'w3schools.com', 'w3school.com.cn',
+];
+
+export function looksEvergreen(item) {
+  if (!item) return false;
+  const title = String(item.title || '');
+  const url = String(item.url || '');
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\./, '').toLowerCase();
+    if (EVERGREEN_HOSTS.some((h) => host === h || host.endsWith('.' + h))) return true;
+    // zhihu question pages are evergreen Q&A, not news
+    if (host === 'zhihu.com' && /^\/question\//.test(u.pathname)) return true;
+    // root / near-root paths are homepages / section indexes
+    const p = u.pathname.replace(/\/+$/, '');
+    if (p === '' || p === '/index.html' || p === '/home') return true;
+    // download / software aggregator pages
+    if (/^\/(download|soft|xiazai|down)\b/i.test(u.pathname)) return true;
+    if (/(^|\.)(down|xiazai|soft|pcsoft|onlinedown|cr173|duote|ddooo|pc6)\b/.test(host)) return true;
+  } catch { /* keep */ }
+  if (EVERGREEN_WORDS.some((w) => title.includes(w))) return true;
+  return false;
+}
+
+// News-like signal words / recent year-month, used to admit undated pages that
+// clearly describe a recent development (while still rejecting evergreen docs).
+const NEWS_WORDS = [
+  '\u53d1\u5e03', // 发布
+  '\u4e0a\u7ebf', // 上线
+  '\u63a8\u51fa', // 推出
+  '\u5ba3\u5e03', // 宣布
+  '\u516c\u5f00', // 公开
+  '\u66dd\u5149', // 曝光
+  '\u6cc4\u9732', // 泄露
+  '\u5f00\u6e90', // 开源
+  '\u53d1\u552e', // 发售
+  '\u4e0a\u5e02', // 上市
+  '\u5185\u6d4b', // 内测
+  '\u516c\u6d4b', // 公测
+  '\u56de\u5e94', // 回应
+  '\u81f4\u6b49', // 致歉
+  '\u91cd\u78c5', // 重磅
+  '\u9884\u544a', // 预告
+  '\u6536\u8d2d', // 收购
+  '\u878d\u8d44', // 融资
+  '\u5347\u7ea7', // 升级
+  '\u66f4\u65b0', // 更新
+  '\u7a81\u7834', // 突破
+  '\u53d1\u5e03\u4f1a', // 发布会
+];
+export function looksNewsy(item) {
+  if (!item) return false;
+  const title = String(item.title || '');
+  if (NEWS_WORDS.some((w) => title.includes(w))) return true;
+  return /20\d{2}\s*[-\/.\u5e74]\s*\d{1,2}/.test(title);
+}
+
 
 // Annotate each item with extra.engineCount / extra.corroborated /
 // extra.corroborators by cross-source matching. Matching is URL-first
