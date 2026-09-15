@@ -106,6 +106,17 @@ export function NotifDrawer({ open, notifications, unread, onClose, onRead, onRe
 /* ---------------- 设置弹窗 ---------------- */
 const ENG_OPTIONS = [['so360news', '360 资讯'], ['bing', '必应 Bing'], ['so360', '360 搜索'], ['baidu', '百度(尽力)']];
 
+// 字段容器：必须定义在组件外部，否则每次重渲染都会重建子树导致输入框失焦
+function Field({ label, hint, children }) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 block font-mono text-[11px] font-bold tracking-wider text-dim">{label}</span>
+      {children}
+      {hint && <span className="mt-1 block text-[10.5px] leading-relaxed text-faint">{hint}</span>}
+    </label>
+  );
+}
+
 export function SettingsModal({ open, settings, health, onClose, onSave }) {
   const [form, setForm] = useState(null);
   const [domains, setDomains] = useState([]);
@@ -162,13 +173,7 @@ export function SettingsModal({ open, settings, health, onClose, onSave }) {
     } catch { /* ignore */ }
   }
 
-  const F = ({ label, hint, children }) => (
-    <label className="block">
-      <span className="mb-1.5 block font-mono text-[11px] font-bold tracking-wider text-dim">{label}</span>
-      {children}
-      {hint && <span className="mt-1 block text-[10.5px] leading-relaxed text-faint">{hint}</span>}
-    </label>
-  );
+  const F = Field;
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-3">
