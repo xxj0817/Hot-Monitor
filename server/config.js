@@ -22,9 +22,9 @@ const DEFAULTS = {
   model: 'nvidia/nemotron-3-super-120b-a12b:free',
   lookbackHours: 24,
   topTrends: 12,
-  sourceToggles: { websearch: true, twitter: true, bilibili: true, mock: true },
+  sourceToggles: { websearch: true, twitter: true, bilibili: true, mock: false },
   // 网页搜索启用引擎（bing=必应, so360=360搜索, baidu=百度尽力而为）
-  websearchEngines: ['so360news', 'bing', 'so360', 'baidu'],
+  websearchEngines: ['so360news', 'bing', 'sogou', 'so360', 'baidu'],
   // Twitter/X 收录最低热度门槛：赞+转+评 >= 该值才收录（排除回复帖）
   twitterMinEngagement: 100,
   // B站收录最低播放量门槛（0=不过滤；无需 Key，公开接口+cookie）

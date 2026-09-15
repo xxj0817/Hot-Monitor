@@ -27,7 +27,8 @@ export async function refreshTrend(manual = false) {
   const s = getSettings();
   const scope = s.scope;
   const name = scope.name || 'AI 编程';
-  const lookback = s.lookbackHours;
+  // 热点榜至少回看 72h（仍需真实发布时间），避免时效过滤后榜单过薄
+  const lookback = Math.max(Number(s.lookbackHours) || 24, 72);
   const toggles = s.sourceToggles;
   const runInfo = insRun.run(name, now(), 'running');
   const runId = Number(runInfo.lastInsertRowid);

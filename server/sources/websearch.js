@@ -178,6 +178,29 @@ async function search360(query) {
   return out;
 }
 
+// ---------------- Sogou (sogou.com) : tsn=1 = past 24h ----------------
+async function searchSogou(query) {
+  const q = encodeURIComponent(query);
+  const url = `https://www.sogou.com/web?query=${q}&tsn=1`;
+  const html = await enqueue(() => fetchHtml(url));
+  const out = [];
+  const blocks = String(html).split(/<div class="vrwrap/).slice(1);
+  for (const block of blocks) {
+    if (/hintBox|hint-mid/i.test(block.slice(0, 120))) continue; // 大家还在搜
+    const aM = block.match(/<h3[^>]*class="[^"]*vr-title[^"]*"[^>]*>[\s\S]*?<a[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/i);
+    if (!aM) continue;
+    let u = decodeEntities(aM[1]);
+    if (u.startsWith('/')) u = 'https://www.sogou.com' + u;
+    if (!/^https?:\/\//.test(u)) continue;
+    const title = stripTags(aM[2]);
+    const sM = block.match(/<div[^>]*class="[^"]*(space-txt|fz-mid|text-layout|str_info)[^"]*"[^>]*>([\s\S]*?)<\/div>/i);
+    const summary = sM ? stripTags(sM[2]) : '';
+    const iso = parseDateText(stripTags(block).slice(0, 400));
+    if (title) out.push({ title, url: u, summary, source: 'sogou', publishedAt: iso, tsKnown: !!iso });
+  }
+  return out;
+}
+
 // ---------------- Baidu (best-effort) ----------------
 let baiduCookie = '';
 let baiduCookieTried = false;
@@ -226,9 +249,9 @@ async function searchBaidu(query) {
   return out;
 }
 
-// Baidu uses a /link redirect; resolve a few to real urls for cross-engine dedupe.
-async function resolveBaidu(item) {
-  if (!/baidu\.com\/link\?/.test(item.url)) return item;
+// resolve engine redirect links (baidu /link?, sogou /link?url=) to real urls
+async function resolveRedirect(item) {
+  if (!/^https?:\/\/[^/]+\/link\?/.test(item.url)) return item;
   try {
     const res = await enqueue(() =>
       fetch(item.url, { headers: BASE_HEADERS(), signal: AbortSignal.timeout(10000), redirect: 'manual' })
@@ -243,11 +266,20 @@ async function searchEngine(query, engineId, lookbackHours) {
   if (engineId === 'so360news') return search360News(query);
   if (engineId === 'bing') return searchBing(query, lookbackHours);
   if (engineId === 'so360') return search360(query);
+  if (engineId === 'sogou') {
+    const list = await searchSogou(query);
+    const resolved = [];
+    for (let i = 0; i < list.length; i++) {
+      resolved.push(await resolveRedirect(list[i]));
+      if (i >= 5) break; // resolve at most 6 redirects, keep the rest raw
+    }
+    return resolved;
+  }
   if (engineId === 'baidu') {
     const list = await searchBaidu(query);
     const resolved = [];
     for (let i = 0; i < list.length; i++) {
-      resolved.push(await resolveBaidu(list[i]));
+      resolved.push(await resolveRedirect(list[i]));
       if (i >= 5) break; // resolve at most 6 redirects, keep the rest raw
     }
     return resolved;
@@ -255,7 +287,7 @@ async function searchEngine(query, engineId, lookbackHours) {
   return [];
 }
 
-export const ENGINE_IDS = ['so360news', 'bing', 'so360', 'baidu'];
+export const ENGINE_IDS = ['so360news', 'bing', 'sogou', 'so360', 'baidu'];
 
 // Collect from all enabled engines (settings.websearchEngines). Engine
 // failures are recorded and skipped. Items carry extra.tsKnown / extra.evergreen

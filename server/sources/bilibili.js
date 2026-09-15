@@ -108,8 +108,8 @@ function mapVideo(v) {
 }
 
 // Adaptive play floor so fresh videos can pass without letting junk flood in:
-//   <24h  -> >= 1000 plays (brand-new but getting traction)
-//   24-72h -> >= max(3000, 10% of bilibiliMinPlay)
+//   <24h  -> >= 300 plays (brand-new but real content)
+//   24-72h -> >= max(2000, 5% of bilibiliMinPlay)
 //   older  -> >= bilibiliMinPlay (0 disables the gate entirely)
 function passGate(it) {
   const minPlay = Number(getSettings().bilibiliMinPlay) || 0;
@@ -118,14 +118,14 @@ function passGate(it) {
   let ageH = 99;
   try { ageH = (Date.now() - Date.parse(it.publishedAt)) / 3600000; } catch { /* keep */ }
   let floor = minPlay;
-  if (ageH <= 24) floor = 1000;
-  else if (ageH <= 72) floor = Math.max(3000, Math.round(minPlay * 0.1));
+  if (ageH <= 24) floor = 300;
+  else if (ageH <= 72) floor = Math.max(2000, Math.round(minPlay * 0.05));
   return play >= floor;
 }
 
-async function videoSearchRaw(q, order) {
-  const suffix = order ? '&order=' + order : '';
-  const j = await api(`${SEARCH}?search_type=video&keyword=${encodeURIComponent(q)}&page=1${suffix}`);
+async function videoSearchRaw(q, order, page = 1) {
+  const suffix = (order ? '&order=' + order : '') + (page > 1 ? '&page=' + page : '');
+  const j = await api(`${SEARCH}?search_type=video&keyword=${encodeURIComponent(q)}&page=${page}${suffix}`);
   const res = j.data && j.data.result;
   return Array.isArray(res) ? res : [];
 }
@@ -151,8 +151,9 @@ function dedupeByBvid(rows) {
 // (order=pubdate) with comprehensive ranking to cover fresh and popular items.
 export async function searchVideos(query, lookbackHours = 24) {
   const rows = dedupeByBvid([
-    ...(await videoSearchRaw(query, 'pubdate')),
-    ...(await videoSearchRaw(query, '')),
+    ...(await videoSearchRaw(query, 'pubdate', 1)),
+    ...(await videoSearchRaw(query, 'pubdate', 2)),
+    ...(await videoSearchRaw(query, '', 1)),
   ]);
   const items = rows
     .map(mapVideo)
@@ -189,8 +190,9 @@ export async function lookupAccount(name) {
 export async function accountVideos(acc, lookbackHours = 24) {
   if (!acc || !acc.mid) return [];
   const rows = dedupeByBvid([
-    ...(await videoSearchRaw(acc.uname, 'pubdate')),
-    ...(await videoSearchRaw(acc.uname, '')),
+    ...(await videoSearchRaw(acc.uname, 'pubdate', 1)),
+    ...(await videoSearchRaw(acc.uname, 'pubdate', 2)),
+    ...(await videoSearchRaw(acc.uname, '', 1)),
   ]);
   const items = rows
     .filter((v) => String(v.mid || '') === String(acc.mid))

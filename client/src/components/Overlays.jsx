@@ -104,7 +104,7 @@ export function NotifDrawer({ open, notifications, unread, onClose, onRead, onRe
 }
 
 /* ---------------- 设置弹窗 ---------------- */
-const ENG_OPTIONS = [['so360news', '360 资讯'], ['bing', '必应 Bing'], ['so360', '360 搜索'], ['baidu', '百度(尽力)']];
+const ENG_OPTIONS = [['so360news', '360 资讯'], ['bing', '必应 Bing'], ['sogou', '搜狗'], ['so360', '360 搜索'], ['baidu', '百度(尽力)']];
 
 // 字段容器：必须定义在组件外部，否则每次重渲染都会重建子树导致输入框失焦
 function Field({ label, hint, children }) {
@@ -123,7 +123,7 @@ export function SettingsModal({ open, settings, health, onClose, onSave }) {
 
   useEffect(() => {
     if (open && settings) {
-      const engs = settings.websearchEngines || ['so360news', 'bing', 'so360', 'baidu'];
+      const engs = settings.websearchEngines || ['so360news', 'bing', 'sogou', 'so360', 'baidu'];
       setForm({
         pollMinutes: settings.pollMinutes,
         model: settings.model,
@@ -136,8 +136,8 @@ export function SettingsModal({ open, settings, health, onClose, onSave }) {
         websearch: settings.sourceToggles?.websearch !== false,
         twitter: settings.sourceToggles?.twitter !== false,
         bilibili: settings.sourceToggles?.bilibili !== false,
-        mock: settings.sourceToggles?.mock !== false,
         eng_bing: engs.includes('bing'),
+        eng_sogou: engs.includes('sogou'),
         eng_so360: engs.includes('so360'),
         eng_so360news: engs.includes('so360news'),
         eng_baidu: engs.includes('baidu'),
@@ -157,12 +157,12 @@ export function SettingsModal({ open, settings, health, onClose, onSave }) {
       topTrends: Number(form.topTrends) || 12,
       twitterMinEngagement: Number(form.twitterMinEngagement) || 0,
       bilibiliMinPlay: Number(form.bilibiliMinPlay) || 0,
-      websearchEngines: ['so360news', 'bing', 'so360', 'baidu'].filter((k) => form['eng_' + k]),
+      websearchEngines: ['so360news', 'bing', 'sogou', 'so360', 'baidu'].filter((k) => form['eng_' + k]),
       scope: {
         name: String(form.scopeName).trim() || 'AI 编程',
         queries: String(form.queries).split(/\r?\n/).map((s) => s.trim()).filter(Boolean),
       },
-      sourceToggles: { websearch: form.websearch, twitter: form.twitter, bilibili: form.bilibili, mock: form.mock },
+      sourceToggles: { websearch: form.websearch, twitter: form.twitter, bilibili: form.bilibili, mock: false },
     });
   }
 
@@ -250,7 +250,7 @@ export function SettingsModal({ open, settings, health, onClose, onSave }) {
             <div>
               <span className="mb-1.5 block font-mono text-[11px] font-bold tracking-wider text-dim">信源开关</span>
               <div className="flex flex-wrap items-center gap-4 font-mono text-[11px] text-ink">
-                {[['websearch', '网页搜索'], ['twitter', 'X 推文'], ['mock', '演示源']].map(([k, label]) => (
+                {[['websearch', '网页搜索'], ['twitter', 'X 推文']].map(([k, label]) => (
                   <label key={k} className="flex cursor-pointer items-center gap-2">
                     <input type="checkbox" checked={form[k]} onChange={(e) => set(k, e.target.checked)}
                       className="h-4 w-4 rounded accent-[#8b5cf6]" />

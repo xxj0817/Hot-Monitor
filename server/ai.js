@@ -171,9 +171,9 @@ export async function refine(items, scopeName) {
     }));
   if (list.length <= 3) return fallback();
   if (!aiConfigured()) return fallback();
-  const system = `你是信息聚合助手。以下是某领域 ${scopeName} 的候选资讯，请：去掉完全重复或低质量(广告/无关)条目；为保留下来的条目给出更精炼的中文标题与一句话摘要，并评估可信度 credible(0到1)。注意：被多个独立信源同时报道(engineCount>=2)的条目可信度应偏高；仅单一信源、疑似营销或小道消息的要给低值。
-**时效硬性要求：剔除过时与常青内容（官网首页、百科词条、教程指南、工具合集、旧版本发布、旧闻重发、泛泛科普），只保留近期新动态或确有新进展的条目；对 ts_known=false（无可靠发布时间）且明显是常青/科普/旧闻的条目剔除，但标题含发布/上线/开源/宣布/泄露等新闻特征的可保留。**
-仅输出 JSON：{"items":[{"url":"原样保留的url","title":"新标题","summary":"一句话摘要","credible":0.0-1.0}]}。只保留有把握的，最多输出 12 条。`;
+  const system = `你是信息聚合助手。以下是某领域 ${scopeName} 的候选资讯，请：只去掉完全重复、明显无关或广告条目；为保留下来的条目给出更精炼的中文标题与一句话摘要，并评估可信度 credible(0到1)。注意：被多个独立信源同时报道(engineCount>=2)的条目可信度应偏高。
+**重要：不要因为发布时间不确定(ts_known=false)就删除条目——时效判断交给后续打分环节；尽量保留有价值的条目（可保留到 12 条）。**
+仅输出 JSON：{"items":[{"url":"原样保留的url","title":"新标题","summary":"一句话摘要","credible":0.0-1.0}]}。`;
   const user = JSON.stringify(
     list.slice(0, 25).map((it) => ({
       url: it.url,

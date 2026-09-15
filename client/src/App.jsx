@@ -226,7 +226,7 @@ export default function App() {
             <div>
               <p className="mb-1 text-[9px] font-bold tracking-[0.2em] text-faint">信源开关</p>
               <div className="mt-1 flex flex-wrap gap-1.5">
-                {[['websearch', '网页搜索', toggles.websearch], ['twitter', 'X 推文', toggles.twitter], ['bilibili', 'B站', toggles.bilibili], ['mock', '演示源', toggles.mock]].map(([k, label, on]) => (
+                {[['websearch', '网页搜索', toggles.websearch], ['twitter', 'X 推文', toggles.twitter], ['bilibili', 'B站', toggles.bilibili]].map(([k, label, on]) => (
                   <span key={k} className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] ${on ? 'border-vio/30 bg-vio/[0.07] text-vio' : 'border-line text-faint'}`}>
                     <span className={`dot ${on ? 'vio' : 'idle'}`} style={{ width: 6, height: 6 }} />{label}
                   </span>
@@ -259,7 +259,7 @@ export default function App() {
           </div>
           <footer className="flex flex-wrap items-center gap-3 border-t border-line-soft px-5 py-2.5">
             <button className="btn small" onClick={runWatchAll}><span className="flex items-center gap-1.5"><Icon.zap size={12} /> 一键全员扫描</span></button>
-            <span className="font-mono text-[9.5px] text-faint">真实数据请关掉「演示源」并配置 .env；演示源用于全链路验证</span>
+            <span className="font-mono text-[9.5px] text-faint">数据来自多信源真实采集；配置 .env 可启用 AI 判定与 X 推文</span>
           </footer>
         </GlowCard>
       </main>
