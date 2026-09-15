@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { api, relTime } from '../lib/api.js';
 import { Icon, SigLight, VerdictBadge, SourceTag, Legend, Sect } from './misc.jsx';
 import { GlowCard } from './ui/aceternity.jsx';
@@ -13,7 +13,7 @@ function SigRow({ sig, fresh }) {
           <VerdictBadge sig={sig} />
           <SourceTag source={sig.source} />
           <span className="font-mono text-[10px] text-faint">{relTime(sig.seen_at)}</span>
-          <span className="ml-auto font-mono text-[10px] text-faint">AI {sig.score ?? '·'}</span>
+          <span className="ml-auto font-mono text-[10px] text-faint">AI {sig.score ?? '--'}</span>
         </div>
         {demo ? (
           <span className="mt-0.5 block cursor-default text-[13px] font-medium leading-snug text-faint/80"
@@ -44,8 +44,40 @@ export default function WatchPanel({ keywords, signalsByKw, busyId, onScan, onAd
   const [adding, setAdding] = useState(false);
   const [confirmId, setConfirmId] = useState(null);
   const [error, setError] = useState('');
+  // 每个关键词的「展开全部历史」状态与已加载的完整信号
+  const [expanded, setExpanded] = useState({});
+  const [full, setFull] = useState({});
+  const [loadingId, setLoadingId] = useState(null);
 
   const active = useMemo(() => keywords.filter((k) => k.enabled).length, [keywords]);
+
+  async function toggleExpand(kw) {
+    const isOpen = !!expanded[kw.id];
+    setExpanded((e) => ({ ...e, [kw.id]: !isOpen }));
+    if (isOpen) return; // 收起时不重新拉取
+    setLoadingId(kw.id);
+    try {
+      const rows = await api.signals(kw.name, 200);
+      setFull((f) => ({ ...f, [kw.id]: rows }));
+    } catch { /* 保留已有数据 */ }
+    finally { setLoadingId(null); }
+  }
+
+  // 有新信号落地时，刷新处于展开状态的关键词列表
+  useEffect(() => {
+    const open = keywords.filter((k) => expanded[k.id]);
+    if (!open.length) return;
+    let cancelled = false;
+    (async () => {
+      const next = {};
+      for (const k of open) {
+        try { next[k.id] = await api.signals(k.name, 200); } catch { /* ignore */ }
+      }
+      if (!cancelled) setFull((f) => ({ ...f, ...next }));
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastSeen]);
 
   async function submit() {
     const n = name.trim();
@@ -117,14 +149,25 @@ export default function WatchPanel({ keywords, signalsByKw, busyId, onScan, onAd
                   <div className="px-3 pb-1 text-[11px] text-faint">已暂停监控</div>
                 ) : sigs.length === 0 ? (
                   <div className="px-3 pb-1 text-[11px] text-faint">暂无信号 · 等自动扫描或点「扫描」立即触发</div>
-                ) : (
-                  <div>
-                    {sigs.slice(0, 4).map((s) => <SigRow key={s.id} sig={s} fresh={idx < 3 && freshIds[s.id]} />)}
-                    {sigs.length > 4 && (
-                      <div className="px-3 pt-1 text-right font-mono text-[10px] text-faint">另有 {sigs.length - 4} 条历史信号</div>
-                    )}
-                  </div>
-                )}
+                ) : (() => {
+                  const open = !!expanded[kw.id];
+                  const list = open && full[kw.id] ? full[kw.id] : sigs;
+                  const total = open && full[kw.id] ? full[kw.id].length : sigs.length;
+                  return (
+                    <div>
+                      {(open ? list : list.slice(0, 4)).map((s) => <SigRow key={s.id} sig={s} fresh={idx < 3 && freshIds[s.id]} />)}
+                      <div className="flex items-center justify-between px-3 pt-1">
+                        <span className="font-mono text-[10px] text-faint">共 {total} 条{open ? '' : ' 历史信号'}</span>
+                        {(total > 4 || open) && (
+                          <button className="font-mono text-[10px] text-cyan transition-colors hover:text-sky"
+                            disabled={loadingId === kw.id} onClick={() => toggleExpand(kw)}>
+                            {loadingId === kw.id ? '加载中…' : open ? '收起 ▲' : `展开全部 ${total} 条 ▼`}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </GlowCard>
           );

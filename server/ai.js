@@ -74,7 +74,12 @@ function extractJson(txt) {
   const i = s.indexOf('{');
   const j = s.lastIndexOf('}');
   if (i >= 0 && j > i) s = s.slice(i, j + 1);
-  return JSON.parse(s);
+  try {
+    return JSON.parse(s);
+  } catch (e) {
+    // 模型偶尔输出解释性文字而非 JSON -> 标记为可重试错误
+    throw new Error('openrouter bad json: ' + String(txt).slice(0, 120));
+  }
 }
 
 function hasKeyword(title, keyword) {
