@@ -17,6 +17,13 @@ const insertSignal = db.prepare(
    VALUES(@keyword_id,@title,@url,@source,@summary,@author,@score,@related,@authentic,@verdict,@reason,@seen_at)`
 );
 const hasUrl = db.prepare('SELECT 1 FROM signals WHERE keyword_id=? AND url=?');
+const findRecheck = db.prepare(
+  `SELECT * FROM signals WHERE keyword_id=? AND url=? AND verdict='unverified'
+   AND (reason LIKE 'AI 调用失败%' OR reason LIKE '%openrouter%' OR reason LIKE '%JSON%')`
+);
+const updateSignal = db.prepare(
+  'UPDATE signals SET score=?, related=?, authentic=?, verdict=?, reason=? WHERE id=?'
+);
 const updLastScan = db.prepare('UPDATE keywords SET last_scan_at=? WHERE id=?');
 
 export async function scanKeyword(kw) {
@@ -64,13 +71,34 @@ export async function scanKeyword(kw) {
   corroborate(candidates);
   const seenInBatch = new Set();
   const fresh = [];
+  let added = 0;
+  let confirmed = 0;
+  let rechecked = 0;
+  let recheckBudget = 10; // 每轮最多复核 10 条历史“AI 失败”待核验条目，控制成本
   for (const c of candidates) {
     const it = norm(c);
     if (!it) continue;
     const key = normUrl(it.url);
     if (seenInBatch.has(key)) continue;
     seenInBatch.add(key);
-    if (hasUrl.get(kw.id, it.url)) continue;
+    if (hasUrl.get(kw.id, it.url)) {
+      // 该 URL 已入库：若此前是因 AI 调用失败而“待核验”，自动重新判定一次
+      if (recheckBudget > 0) {
+        const row = findRecheck.get(kw.id, it.url);
+        if (row) {
+          const j2 = await judge(it, kw.name);
+          updateSignal.run(j2.score, j2.related, j2.authentic, j2.verdict, j2.reason || '', row.id);
+          recheckBudget--;
+          rechecked++;
+          if (j2.related === 1 && j2.authentic === 1) {
+            confirmed++;
+            const signal = { id: row.id, keyword_id: kw.id, keyword: kw.name, title: row.title, url: row.url, source: row.source, summary: row.summary, author: row.author, score: j2.score, related: j2.related, authentic: j2.authentic, verdict: j2.verdict, reason: j2.reason, seen_at: row.seen_at };
+            notify('signal.new', `信号确认【${kw.name}】`, row.title, { keyword: kw.name, signal });
+          }
+        }
+      }
+      continue;
+    }
     // 常青/导航页（官网/百科/教程…）不属于新动态 -> 跳过
     if (it.extra && it.extra.evergreen) continue;
     const corroborated = !!(it.extra && it.extra.corroborated);
@@ -82,8 +110,6 @@ export async function scanKeyword(kw) {
     fresh.push(it);
   }
 
-  let added = 0;
-  let confirmed = 0;
   for (const it of fresh) {
     const j = await judge(it, kw.name);
     // AI 判为假：给来源域名累计一次灰名单记录
@@ -136,7 +162,7 @@ export async function scanKeyword(kw) {
   for (const c of candidates) bySrc[c.source] = (bySrc[c.source] || 0) + 1;
   const srcStr = Object.entries(bySrc).map(([s, n]) => `${s}=${n}`).join(' ');
   const hit = added > 0 || confirmed > 0;
-  logEvent(hit ? ic.check : ic.clock, hit ? 'green' : 'dim', 'watch', `"${kw.name}": 采集 ${candidates.length} (${srcStr}) -> 新 ${fresh.length} -> 入库 ${added} / 确认 ${confirmed}`);
+  logEvent(hit ? ic.check : ic.clock, hit ? 'green' : 'dim', 'watch', `"${kw.name}": 采集 ${candidates.length} (${srcStr}) -> 新 ${fresh.length} -> 入库 ${added} / 确认 ${confirmed}${rechecked ? ' / 复核 ' + rechecked : ''}`);
   updLastScan.run(now(), kw.id);
   return { keyword: kw.name, candidates: candidates.length, fresh: fresh.length, added, confirmed };
 }

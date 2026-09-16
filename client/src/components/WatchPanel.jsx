@@ -176,6 +176,9 @@ export default function WatchPanel({ keywords, signalsByKw, busyId, onScan, onAd
 
       <footer className="border-t border-line-soft px-4 py-2">
         <Legend items={[['good', '已确认'], ['warn', '待核验'], ['bad', '疑似假'], ['idle', '无关']]} />
+        <p className="mt-1.5 text-[10.5px] leading-relaxed text-faint">
+          待核验 = AI 未能判定（信息不足或调用失败），并非假消息；系统会自动复核，无需人工逐条确认。
+        </p>
       </footer>
     </section>
   );
