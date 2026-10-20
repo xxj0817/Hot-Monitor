@@ -23,7 +23,7 @@ function Test-Utf8([byte[]]$b) {
 
 $total = 0
 $skipDirs = @("node_modules","dist","build",".git",".vite",".cache","data")
-$allowedExt = @(".js",".jsx",".ts",".tsx",".mjs",".cjs",".css",".html",".md",".json",".txt",".svg",".env")
+$allowedExt = @(".js",".jsx",".ts",".tsx",".mjs",".cjs",".css",".html",".md",".json",".jsonl",".txt",".svg",".env")
 $targets = New-Object System.Collections.Generic.List[string]
 
 function Add-Target([string]$p) {

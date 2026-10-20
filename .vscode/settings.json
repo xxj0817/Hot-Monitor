@@ -1,0 +1,17 @@
+{
+  // 本项目所有源码/文档统一使用 UTF-8（Node 读取中文必须为 UTF-8）。
+  // 本机 VS Code 用户设置是 files.encoding = gb18030，会导致 UTF-8 文件在编辑器里
+  // 显示成乱码（"锛" "鐨" 之类），甚至保存时把文件写坏。这里固定为 UTF-8。
+  "files.encoding": "utf8",
+  "files.autoGuessEncoding": false,
+
+  // 不要在保存时自动把换行/编码做转换，避免与命令行工具互相打架
+  "files.eol": "\n",
+  "files.trimTrailingWhitespace": false,
+
+  // 这些目录不需要搜索/监控
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/client/dist": false
+  }
+}
