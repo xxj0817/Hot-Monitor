@@ -28,7 +28,7 @@ export const ic = {
   gear: '\u2699\ufe0f', // ????
   eye: '\u{1f441}\ufe0f', // ????
   clock: '\u23f1\ufe0f', // ????
-  dot: '\u25cf', // ●
+  dot: '\u25cf', // 圆点
   star: '\u2b50', // ??
 };
 

@@ -120,6 +120,15 @@ export default function App() {
     try { await api.saveSettings(patch); addToast({ type: 'info', title: '设置已保存', body: '参数已生效' }); setSettingsOpen(false); await refresh(); }
     catch (e) { addToast({ type: 'info', title: '保存失败', body: e.message }); }
   };
+  // 排序/筛选偏好：本地立即生效，随后防抖写回 settings.json
+  const viewPrefsTimer = useRef(null);
+  const saveViewPrefs = (next) => {
+    setData((d) => ({ ...d, settings: { ...(d.settings || {}), viewPrefs: next } }));
+    if (viewPrefsTimer.current) clearTimeout(viewPrefsTimer.current);
+    viewPrefsTimer.current = setTimeout(() => {
+      api.saveSettings({ viewPrefs: next }).catch(() => {});
+    }, 500);
+  };
   const requestDesktop = async () => {
     if (typeof Notification === 'undefined') { addToast({ type: 'info', title: '浏览器不支持桌面通知', body: '建议使用 Chrome / Edge' }); return; }
     if (desktopOk) { setDesktopOk(false); return; }
@@ -202,15 +211,17 @@ export default function App() {
         <div className="lg:col-span-5">
           <WatchPanel keywords={data.keywords} signalsByKw={signalsByKw} busyId={scanId}
             onScan={scanKeyword} onAdd={refresh} onToggle={toggleKeyword} onRemove={removeKeyword}
-            lastSeen={freshSigIds} />
+            lastSeen={freshSigIds}
+            viewPrefs={data.settings?.viewPrefs} onViewPrefs={saveViewPrefs} />
         </div>
         <div className="lg:col-span-7">
           <TrendPanel scope={s?.scope} trends={data.trends} refreshing={refreshing}
             onRefresh={refreshTrends} newIds={freshTrendIds}
+            viewPrefs={data.settings?.viewPrefs} onViewPrefs={saveViewPrefs}
             lastRun={lastRun?.status === 'done' ? fmtTime(lastRun.finished_at) : ''} />
         </div>
 
-        {/* ===== 遥测条 ===== */}
+      {/* ===== 顶栏 ===== */}
         <GlowCard className="glass rounded-2xl lg:col-span-12">
           <header className="flex items-center gap-2.5 border-b border-line-soft px-4 py-3">
             <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-cyan/10 text-cyan"><Icon.db size={14} /></span>
@@ -224,9 +235,9 @@ export default function App() {
               <p className="mt-0.5 text-faint">窗口 {s?.lookbackHours || 24}h · 领域「{s?.scope?.name || 'AI 编程'}」</p>
             </div>
             <div>
-              <p className="mb-1 text-[9px] font-bold tracking-[0.2em] text-faint">信源开关</p>
+              <p className="mb-1 text-[9px] font-bold tracking-[0.2em] text-faint">调度</p>
               <div className="mt-1 flex flex-wrap gap-1.5">
-                {[['websearch', '网页搜索', toggles.websearch], ['twitter', 'X 推文', toggles.twitter], ['bilibili', 'B站', toggles.bilibili]].map(([k, label, on]) => (
+                {[['websearch', '网页搜索', toggles.websearch], ['weibo', '微博', toggles.weibo], ['twitter', 'X 推文', toggles.twitter], ['bilibili', 'B站', toggles.bilibili]].map(([k, label, on]) => (
                   <span key={k} className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] ${on ? 'border-vio/30 bg-vio/[0.07] text-vio' : 'border-line text-faint'}`}>
                     <span className={`dot ${on ? 'vio' : 'idle'}`} style={{ width: 6, height: 6 }} />{label}
                   </span>
@@ -234,7 +245,7 @@ export default function App() {
               </div>
             </div>
             <div>
-              <p className="mb-1 text-[9px] font-bold tracking-[0.2em] text-faint">最近批次</p>
+              <p className="mb-1 text-[9px] font-bold tracking-[0.2em] text-faint">信源开关</p>
               {lastRun ? (
                 <>
                   <p className="text-dim">{lastRun.status} · 上榜 {lastRun.items} · {fmtTime(lastRun.finished_at || lastRun.started_at)}</p>

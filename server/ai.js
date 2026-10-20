@@ -1,6 +1,7 @@
-// OpenRouter AI 封装：judge(真伪/相关判定) / refine(去重提炼) / rank(热度分级)
+// OpenRouter AI 封装：judge(真伪/相关判定) / refine(去重提炼) / rank(热度分级) / aiExpand(查询扩展)
 // 无 Key 或调用失败时自动降级为本地规则（返回 unverified 存疑态，不误报为"真"）。
 import { env, getSettings } from './config.js';
+import { evaluateItem } from './relevance.js';
 
 const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 
@@ -82,15 +83,44 @@ function extractJson(txt) {
   }
 }
 
-function hasKeyword(title, keyword) {
-  const t = String(title || '').toLowerCase();
-  return t.includes(String(keyword).toLowerCase());
+// 本地相关性评估：合并设置里的别名 + 该关键词的查询扩展变体
+function localRelevance(item, keyword, ctx) {
+  const base = getSettings().relevance || {};
+  const aliases = { ...(base.aliases || {}), ...((ctx && ctx.aliases) || {}) };
+  return evaluateItem(item, keyword, { ...base, aliases }, (ctx && ctx.variants) || []);
+}
+
+// 本地兜底判定：命中关键词字面/实体/扩展变体才算相关（无 Key 或 AI 失败时使用）
+function localJudge(item, keyword, ctx, rel, reasonText) {
+  const r = rel || localRelevance(item, keyword, ctx);
+  const related = r.coverage > 0 ? 1 : 0;
+  return {
+    related,
+    authentic: null,
+    score: related ? 50 : 5,
+    verdict: 'unverified',
+    reason: reasonText,
+    evidence: r.hitVariant || r.matched.join(' / '),
+    why: related
+      ? `原文命中关键词或其扩展叫法（覆盖度 ${r.coverage}），是否蹭词仍待 AI 复核。`
+      : '原文未出现关键词及其扩展叫法，与监控主题没有直接关联。',
+    coverage: r.coverage,
+    model: 'local',
+    relevance: r,
+  };
 }
 
 // ---------- 判定：候选内容是否与关键词强相关且真实可信 ----------
-export async function judge(item, keyword) {
+// ctx: { variants, aliases, relevance, strict } —— 由 watcher/trend 传入查询扩展与本地预判结果
+// 返回 { related, authentic, score, verdict, reason, evidence, why, coverage, model, relevance }
+//   reason   = 真伪判定理由（一句话）
+//   evidence = 相关性证据：从原文逐字摘录的片段
+//   why      = 该片段为何说明“与关键词相关”
+//   coverage = 关键词覆盖度 0~1
+export async function judge(item, keyword, ctx = {}) {
   const kw = String(keyword || '');
-  // 演示源不走真实 AI，避免把演示数据误判为"假"或消耗额度
+  const rel = ctx.relevance || localRelevance(item, kw, ctx);
+  // 演示源不走真实 AI，避免把演示数据误判为“假”或消耗额度
   if (item.source === 'mock') {
     return {
       related: 1,
@@ -98,23 +128,25 @@ export async function judge(item, keyword) {
       score: 90,
       verdict: 'demo',
       reason: '演示信源样例，按可信处理以演示全链路。',
+      evidence: '',
+      why: '演示数据，跳过相关性判定。',
+      coverage: 1,
       model: 'mock',
+      relevance: rel,
     };
   }
   if (!aiConfigured()) {
-    const related = hasKeyword(item.title, kw) ? 1 : 0;
-    return {
-      related,
-      authentic: null,
-      score: related ? 50 : 10,
-      verdict: 'unverified',
-      reason: 'OPENROUTER_API_KEY 未配置，使用本地规则初判，结果未经 AI 验证。',
-      model: 'local',
-    };
+    return localJudge(item, kw, ctx, rel, 'OPENROUTER_API_KEY 未配置，使用本地规则初判，结果未经 AI 验证。');
   }
-  const system = `你是专业资讯真伪鉴别助手。判断一条候选资讯是否：(1) 与用户监控的关键词强相关（不是标题党蹭词）；(2) 内容真实可信（非营销号软文、非谣言、非旧闻新发、非明显虚构）。
-注意：不要因为内容发布/声称的时间晚于你的知识截止时间就判定为假——实时搜索可能包含你未见过的新进展；无法仅凭记忆确认时，结合标题、摘要与多信源报道判断，仍拿不准就判 unverified 存疑。
-仅输出 JSON，格式：{"related":0或1,"authentic":0或1,"score":0到100整数,"verdict":"authentic"或"fake"或"unrelated"或"unverified","reason":"一句话中文理由"}`;
+  const system = `你是资讯相关性审查员。给定监控关键词，判断候选资讯是否同时满足：
+(1) 【强相关】标题或摘要中必须实际出现关键词或其等价叫法（含查询扩展变体），或明确在讨论同一个对象/产品/话题。仅仅"属于同一领域、同一大类"不算相关；蹭词、标题党、只提到同公司的其他产品也不算相关。
+(2) 【真实可信】非营销号软文、非谣言、非旧闻新发、非明显虚构。
+硬规则：
+- 若标题与摘要里都找不到关键词或其等价叫法，也没有具体讨论该对象，则 related 必须为 0、verdict 必须为 "unrelated"。
+- evidence 必须从标题或摘要中逐字摘录，不得改写、不得编造；找不到可摘录的片段就不要判 related=1。
+- evidence 与 why 只说明"为什么和关键词有关"，不要用它们介绍文章内容（内容摘要由另一个环节生成）。
+- 不要因为内容发布/声称的时间晚于你的知识截止时间就判定为假——实时搜索可能包含你未见过的新进展；无法仅凭记忆确认时，结合标题、摘要与多信源报道判断，仍拿不准就判 unverified 存疑。
+仅输出 JSON，格式：{"related":0或1,"authentic":0或1,"score":0到100整数,"verdict":"authentic"或"fake"或"unrelated"或"unverified","reason":"一句话真伪判定理由","evidence":"从标题或摘要逐字摘录的相关性证据（不超过60字）","why":"一句话说明该证据为何与关键词相关（不超过60字）","coverage":0到1的小数}`;
   const extra = item.extra || {};
   const srcMeta =
     `信源：${item.source}` +
@@ -128,6 +160,10 @@ export async function judge(item, keyword) {
   const pubLine = item.source === 'twitter'
     ? `发布时间：${item.publishedAt || ''}`
     : '发布时间：实时检索，无法确认发布日期';
+  const relLine = ctx.variants && ctx.variants.length
+    ? `查询扩展变体（这些叫法视为同一对象）：${ctx.variants.slice(0, 8).join(' / ')}`
+    : '查询扩展变体：无';
+  const localLine = `本地字面匹配：命中 [${rel.matched.join(', ') || '无'}]，缺失 [${rel.missing.join(', ') || '无'}]，覆盖度 ${rel.coverage}${rel.hitVariant ? `，命中扩展变体“…${rel.hitVariant}…”` : ''}`;
   const user = `监控关键词：${kw}
 候选资讯（来源 ${item.source}）：
 标题：${item.title}
@@ -135,30 +171,66 @@ export async function judge(item, keyword) {
 链接：${item.url}
 ${pubLine}
 ${srcMeta}
+${relLine}
+${localLine}
 请判定。`;
   try {
-    const r = await chat(system, user, { maxTokens: 500 });
+    const r = await chat(system, user, { maxTokens: 600 });
     const score = Math.max(0, Math.min(100, Number(r.score) || 0));
+    const covNum = Number(r.coverage);
+    const coverage = Number.isFinite(covNum)
+      ? Math.round(Math.max(0, Math.min(1, covNum)) * 100) / 100
+      : rel.coverage;
+    let related = r.related === 1 ? 1 : 0;
+    let verdict = ['authentic', 'fake', 'unrelated', 'unverified'].includes(r.verdict) ? r.verdict : 'unverified';
+    const evidence = String(r.evidence || '').slice(0, 200);
+    // 硬规则兜底：本地完全没命中、模型也没给证据时，不允许判为相关
+    if (related === 1 && ctx.strict && rel.coverage === 0 && !evidence.trim()) {
+      related = 0;
+      verdict = 'unrelated';
+    }
     return {
-      related: r.related === 1 ? 1 : 0,
+      related,
       authentic: r.authentic === 1 ? 1 : r.authentic === 0 ? 0 : null,
       score,
-      verdict: ['authentic', 'fake', 'unrelated', 'unverified'].includes(r.verdict) ? r.verdict : 'unverified',
+      verdict,
       reason: String(r.reason || '').slice(0, 300),
+      evidence,
+      why: String(r.why || '').slice(0, 200),
+      coverage,
       model: getSettings().model,
+      relevance: rel,
     };
   } catch (e) {
     // AI 失败 -> 本地规则兜底（标记 unverified，不自动"确认"）
-    const related = hasKeyword(item.title, kw) ? 1 : 0;
-    return {
-      related,
-      authentic: null,
-      score: related ? 45 : 5,
-      verdict: 'unverified',
-      reason: `AI 调用失败已降级本地初判：${e.message}`.slice(0, 300),
-      model: 'local',
-    };
+    return localJudge(item, kw, ctx, rel, `AI 调用失败已降级本地初判：${e.message}`.slice(0, 300));
   }
+}
+
+// ---------- 查询扩展：为关键词生成“同一对象”的其他叫法，用于提高召回 ----------
+export async function aiExpand(keyword) {
+  if (!aiConfigured()) throw new Error('OPENROUTER_API_KEY 未配置');
+  const system = `你是检索词扩展助手。给定一个监控关键词（账号名、产品名、模型名或话题），列出"指向同一对象/同一话题"的其他常见叫法与写法，用于搜索引擎与内容平台检索。
+要求：
+1) 只输出确实指向同一对象的变体，不要输出无关联想，也不要输出上位类目（如"大模型""AI工具"）。
+2) 覆盖这些改写方式：加/去修饰词（程序员、官方、最新）、词序调整、简称与全称、中英文混排的空格差异、常见别称。
+3) 最多 8 条，每条不超过 20 个字，不要包含引号或标点。
+4) 同时给出关键词中每个实体的常见同义词 aliases。
+仅输出 JSON，格式：{"variants":["程序员鱼皮的AI导航"],"aliases":{"claude":["anthropic","克劳德"]}}`;
+  const r = await chat(system, `监控关键词：${keyword}`, { maxTokens: 500, temperature: 0.4 });
+  const variants = Array.isArray(r.variants)
+    ? r.variants.map((x) => String(x || '').trim()).filter(Boolean)
+    : [];
+  const aliases = {};
+  if (r.aliases && typeof r.aliases === 'object') {
+    for (const k of Object.keys(r.aliases)) {
+      const v = Array.isArray(r.aliases[k])
+        ? r.aliases[k].map((x) => String(x || '').trim()).filter(Boolean)
+        : [];
+      if (v.length) aliases[String(k)] = v.slice(0, 6);
+    }
+  }
+  return { variants: variants.slice(0, 12), aliases, model: getSettings().model };
 }
 
 // ---------- 提炼：对原始采集条目去重、清洗、可信度估计 ----------

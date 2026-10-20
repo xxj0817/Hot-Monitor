@@ -106,7 +106,7 @@ export function NotifDrawer({ open, notifications, unread, onClose, onRead, onRe
 /* ---------------- 设置弹窗 ---------------- */
 const ENG_OPTIONS = [['so360news', '360 资讯'], ['bing', '必应 Bing'], ['sogou', '搜狗'], ['so360', '360 搜索'], ['baidu', '百度(尽力)']];
 
-// 字段容器：必须定义在组件外部，否则每次重渲染都会重建子树导致输入框失焦
+  // 字段容器：必须定义在组件外部，否则每次重渲染都会重建子树导致输入框失焦
 function Field({ label, hint, children }) {
   return (
     <label className="block">
@@ -120,6 +120,9 @@ function Field({ label, hint, children }) {
 export function SettingsModal({ open, settings, health, onClose, onSave }) {
   const [form, setForm] = useState(null);
   const [domains, setDomains] = useState([]);
+  const [busyExp, setBusyExp] = useState(false);
+  const [expMsg, setExpMsg] = useState('');
+  const [expList, setExpList] = useState([]);
 
   useEffect(() => {
     if (open && settings) {
@@ -134,6 +137,7 @@ export function SettingsModal({ open, settings, health, onClose, onSave }) {
         scopeName: settings.scope?.name || '',
         queries: (settings.scope?.queries || []).join('\n'),
         websearch: settings.sourceToggles?.websearch !== false,
+        weibo: settings.sourceToggles?.weibo === true,
         twitter: settings.sourceToggles?.twitter !== false,
         bilibili: settings.sourceToggles?.bilibili !== false,
         eng_bing: engs.includes('bing'),
@@ -141,8 +145,23 @@ export function SettingsModal({ open, settings, health, onClose, onSave }) {
         eng_so360: engs.includes('so360'),
         eng_so360news: engs.includes('so360news'),
         eng_baidu: engs.includes('baidu'),
+        minCoverage: String(settings.relevance?.minCoverage ?? 1),
+        excludeTerms: (settings.relevance?.excludeTerms || []).join('\n'),
+        mustInclude: (settings.relevance?.mustInclude || []).join('\n'),
+        expandQueries: settings.expandQueries ?? 1,
       });
       api.domains().then(setDomains).catch(() => setDomains([]));
+      api
+        .expansions()
+        .then((m) =>
+          setExpList(
+            Object.entries(m || {}).map(([k, v]) => [
+              k,
+              (v.ai && v.ai.length ? v.ai : v.local || []).slice(0, 6).join(' / ') || '（暂无变体）',
+            ])
+          )
+        )
+        .catch(() => setExpList([]));
     }
   }, [open, settings]);
 
@@ -153,7 +172,7 @@ export function SettingsModal({ open, settings, health, onClose, onSave }) {
     onSave({
       pollMinutes: Number(form.pollMinutes) || 30,
       model: String(form.model).trim() || 'nvidia/nemotron-3-super-120b-a12b:free',
-      lookbackHours: Number(form.lookbackHours) || 24,
+      lookbackHours: Number(form.lookbackHours) || 168,
       topTrends: Number(form.topTrends) || 12,
       twitterMinEngagement: Number(form.twitterMinEngagement) || 0,
       bilibiliMinPlay: Number(form.bilibiliMinPlay) || 0,
@@ -162,7 +181,15 @@ export function SettingsModal({ open, settings, health, onClose, onSave }) {
         name: String(form.scopeName).trim() || 'AI 编程',
         queries: String(form.queries).split(/\r?\n/).map((s) => s.trim()).filter(Boolean),
       },
-      sourceToggles: { websearch: form.websearch, twitter: form.twitter, bilibili: form.bilibili, mock: false },
+      sourceToggles: { websearch: form.websearch, weibo: form.weibo, twitter: form.twitter, bilibili: form.bilibili, mock: false },
+      relevance: {
+        minCoverage: Number(form.minCoverage),
+        dropBelowMin: true,
+        aliases: settings?.relevance?.aliases || {},
+        excludeTerms: String(form.excludeTerms || '').split(/\r?\n/).map((s) => s.trim()).filter(Boolean),
+        mustInclude: String(form.mustInclude || '').split(/\r?\n/).map((s) => s.trim()).filter(Boolean),
+      },
+      expandQueries: Math.max(0, Math.min(3, Number(form.expandQueries) || 0)),
     });
   }
 
@@ -171,6 +198,22 @@ export function SettingsModal({ open, settings, health, onClose, onSave }) {
       await api.clearDomains();
       setDomains([]);
     } catch { /* ignore */ }
+  }
+
+  // 生成/刷新所有关键词的查询扩展变体（每个关键词一次 AI 调用）
+  async function regenExpansions() {
+    setBusyExp(true);
+    setExpMsg('正在生成…');
+    try {
+      const r = await api.refreshExpansions();
+      const rows = Object.entries(r.items || {}).map(([k, v]) => [k, (v.variants || []).slice(0, 6).join(' / ') || '（无变体）']);
+      setExpList(rows);
+      setExpMsg(`已处理 ${r.count || 0} 个关键词`);
+    } catch (e) {
+      setExpMsg(`生成失败：${e.message}`);
+    } finally {
+      setBusyExp(false);
+    }
   }
 
   const F = Field;
@@ -200,7 +243,7 @@ export function SettingsModal({ open, settings, health, onClose, onSave }) {
 
           <div className="grid grid-cols-3 gap-3">
             <F label="轮询周期(分钟)"><input className="inp w-full" type="number" min="1" value={form.pollMinutes} onChange={(e) => set('pollMinutes', e.target.value)} /></F>
-            <F label="回看窗口(小时)"><input className="inp w-full" type="number" min="1" value={form.lookbackHours} onChange={(e) => set('lookbackHours', e.target.value)} /></F>
+            <F label="回看窗口(小时)" hint="哨兵与雷达共用；默认 168 = 7 天，超过该窗口的内容会被丢弃"><input className="inp w-full" type="number" min="1" value={form.lookbackHours} onChange={(e) => set('lookbackHours', e.target.value)} /></F>
             <F label="热点榜条数"><input className="inp w-full" type="number" min="3" max="50" value={form.topTrends} onChange={(e) => set('topTrends', e.target.value)} /></F>
           </div>
 
@@ -210,6 +253,11 @@ export function SettingsModal({ open, settings, health, onClose, onSave }) {
 
           <div className="rounded-xl border border-line-soft bg-void/40 px-3.5 py-3">
             <div className="flex flex-wrap items-center gap-x-5 gap-y-2 font-mono text-[11px] text-ink">
+              <label className="flex cursor-pointer items-center gap-2">
+                <input type="checkbox" checked={form.weibo} onChange={(e) => set('weibo', e.target.checked)}
+                  className="h-4 w-4 rounded accent-[#e6162d]" />
+                微博搜索索引（无 Key，来自公开搜索结果）
+              </label>
               <label className="flex cursor-pointer items-center gap-2">
                 <input type="checkbox" checked={form.bilibili} onChange={(e) => set('bilibili', e.target.checked)}
                   className="h-4 w-4 rounded accent-[#fb7299]" />
@@ -222,7 +270,7 @@ export function SettingsModal({ open, settings, health, onClose, onSave }) {
               </label>
             </div>
             <p className="mt-1.5 font-mono text-[10px] leading-relaxed text-faint">
-              关键词含 @/博主/官方/UP 主/账号 等时自动视为账号，直接获取该账号最新视频
+              关键词含 @/博主/官方/UP 主/账号 等，或与某个 UP 主名称完全相同，会自动按账号采集（回看 7 天）；找不到同名账号时自动退回关键词视频搜索
             </p>
           </div>
 
@@ -248,7 +296,7 @@ export function SettingsModal({ open, settings, health, onClose, onSave }) {
           <div className="grid gap-4 sm:grid-cols-2">
             <F label="领域名称"><input className="inp w-full" value={form.scopeName} onChange={(e) => set('scopeName', e.target.value)} maxLength={20} /></F>
             <div>
-              <span className="mb-1.5 block font-mono text-[11px] font-bold tracking-wider text-dim">信源开关</span>
+              <span className="mb-1.5 block font-mono text-[11px] font-bold tracking-wider text-dim">网页搜索引擎</span>
               <div className="flex flex-wrap items-center gap-4 font-mono text-[11px] text-ink">
                 {[['websearch', '网页搜索'], ['twitter', 'X 推文']].map(([k, label]) => (
                   <label key={k} className="flex cursor-pointer items-center gap-2">
@@ -264,6 +312,54 @@ export function SettingsModal({ open, settings, health, onClose, onSave }) {
           <F label="领域检索词（每行一个）" hint="多词扩大采集面，自动用于网页搜索与 X 推文">
             <textarea className="inp h-28 w-full resize-y leading-relaxed" value={form.queries} onChange={(e) => set('queries', e.target.value)} />
           </F>
+
+          <div className="rounded-xl border border-line-soft bg-void/50 p-3.5">
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-[11px] font-bold tracking-wider text-dim">相关性闸门（过滤与关键词无关的内容）</span>
+            </div>
+            <p className="mt-1.5 font-mono text-[10px] leading-relaxed text-faint">
+              未命中关键词（含查询扩展变体）的内容会被直接丢弃，不再消耗 AI 调用；账号型关键词不受此限制。
+            </p>
+            <div className="mt-2.5 grid gap-3 sm:grid-cols-2">
+              <F label="命中要求" hint="关键词拆成多个实体词后，需要命中多少才保留">
+                <select className="inp w-full" value={form.minCoverage} onChange={(e) => set('minCoverage', e.target.value)}>
+                  <option value="1">全部实体词命中（最严）</option>
+                  <option value="0.5">至少一半实体词</option>
+                  <option value="0">命中任意词即可（最松）</option>
+                </select>
+              </F>
+              <F label="查询扩展词数" hint="每轮扫描额外用几个扩展变体去检索（0 = 只用原关键词）">
+                <input className="inp w-full" type="number" min="0" max="3" value={form.expandQueries}
+                  onChange={(e) => set('expandQueries', e.target.value)} />
+              </F>
+            </div>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <F label="排除词（每行一个）" hint="标题或摘要出现就丢弃，例如 openclaw">
+                <textarea className="inp h-20 w-full resize-y leading-relaxed" value={form.excludeTerms}
+                  onChange={(e) => set('excludeTerms', e.target.value)} placeholder="openclaw" />
+              </F>
+              <F label="必须包含词（每行一个）" hint="必须全部出现在标题或摘要中才保留">
+                <textarea className="inp h-20 w-full resize-y leading-relaxed" value={form.mustInclude}
+                  onChange={(e) => set('mustInclude', e.target.value)} />
+              </F>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button type="button" className="btn small" onClick={regenExpansions} disabled={busyExp}>
+                {busyExp ? '生成中…' : '生成/刷新查询扩展'}
+              </button>
+              <span className="font-mono text-[10px] text-faint">{expMsg || '用 AI 为每个关键词生成“同一对象”的其他叫法（检索与相关性判定共用）'}</span>
+            </div>
+            {expList.length > 0 && (
+              <div className="mt-2 space-y-1">
+                {expList.slice(0, 6).map(([kw, terms]) => (
+                  <div key={kw} className="font-mono text-[10px] leading-relaxed text-faint">
+                    <b className="text-dim">{kw}</b>
+                    <span className="ml-1.5">{terms}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           <div className="rounded-xl border border-line-soft bg-void/50 p-3.5">
             <div className="flex items-center gap-2">

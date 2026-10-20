@@ -34,6 +34,9 @@ export const Icon = {
   zap: (p) => (<I {...p}><path d="M13 2 4.5 13.5H11L9.5 22 19 10h-6.5L13 2Z" /></I>),
   flame: (p) => (<I {...p}><path d="M12 3c1 3-1 4.5-1 6a2.6 2.6 0 0 0 4.2 2c.5-1 .3-2-.2-3 .5.4 1 .9 1.4 1.6C17.6 11.6 18 13 18 14.5A6.5 6.5 0 0 1 5 14.5C5 10 8 7.5 12 3Z" /></I>),
   radio: (p) => (<I {...p}><circle cx="12" cy="12" r="2.2" /><path d="M7.8 16.2a5.5 5.5 0 0 1 0-8.4M16.2 7.8a5.5 5.5 0 0 1 0 8.4" /></I>),
+  clock: (p) => (<I {...p}><circle cx="12" cy="12" r="9" /><path d="M12 7v5.2l3.6 2.1" /></I>),
+  copy: (p) => (<I {...p}><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V6.5A1.5 1.5 0 0 1 6.5 5H15" /></I>),
+  link: (p) => (<I {...p}><path d="M10 13a4 4 0 0 0 5.7 0l2.3-2.3a4 4 0 0 0-5.7-5.7L11 6.3" /><path d="M14 11a4 4 0 0 0-5.7 0L6 13.3a4 4 0 0 0 5.7 5.7l1.3-1.3" /></I>),
 };
 
 // 判定：verdict -> 灯与徽章
@@ -64,7 +67,7 @@ export function VerdictBadge({ sig, showLabel }) {
   return <span className={`vchip ${v.t}`} title={sig.reason || ''}>{label || v.label}</span>;
 }
 
-// 来源名 -> 展示名/样式族
+// 来源名 -> 展示名/样式映射
 const SRC_NAME = {
   bing: { label: 'BING', cls: 'src-bing' },
   so360: { label: '360', cls: 'src-360' },
@@ -72,6 +75,7 @@ const SRC_NAME = {
   duckduckgo: { label: 'DDG', cls: 'src-duckduckgo' },
   twitter: { label: 'X', cls: 'src-twitter' },
   bilibili: { label: 'B站', cls: 'src-bilibili' },
+  weibo: { label: '微博', cls: 'src-weibo' },
   mock: { label: 'DEMO', cls: 'src-mock' },
 };
 

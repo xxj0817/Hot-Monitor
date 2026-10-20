@@ -83,7 +83,7 @@ CREATE TABLE IF NOT EXISTS domain_meta(
 
 export const now = () => new Date().toISOString();
 
-// Ǩ�ƣ��ɰ汾 trends.credible Ϊ NOT NULL���ſ�Ϊ�ɿգ�credible=null ��ʾδ��֤��
+// 迁移：旧版本 trends.credible 为 NOT NULL，放开为可空（credible=null 表示未验证）
 try {
   const col = db.prepare('PRAGMA table_info(trends)').all().find((c) => c.name === 'credible');
   if (col && col.notnull === 1) {
@@ -107,15 +107,54 @@ try {
         SELECT scope,title,url,source,summary,heat,level,credible,first_seen,updated_at FROM trends_old;
       DROP TABLE trends_old;
     `);
-    console.log('[db] Ǩ����ɣ�trends.credible �ѷſ�Ϊ�ɿ�');
+    console.log('[db] 迁移完成：trends.credible 已放开为可空');
   }
 } catch (e) {
-  console.warn('[db] credible Ǩ��ʧ�ܣ����ԣ�:', e.message);
+  console.warn('[db] credible 迁移失败（忽略）:', e.message);
 }
 
-// �������������ϴ��쳣�˳������� running ���α��Ϊ�ж�
+// 迁移：为 signals / trends 增加 published_at（真实发布时间）与 extra（JSON 明细：
+// 互动数据、来源引擎、多源印证、账号信息等）。历史数据无法回填，保持 NULL。
+function addColumn(table, column, ddl) {
+  try {
+    const cols = db.prepare(`PRAGMA table_info(${table})`).all();
+    if (cols.some((c) => c.name === column)) return;
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${ddl}`);
+    console.log(`[db] 迁移完成：${table}.${column}`);
+  } catch (e) {
+    console.warn(`[db] ${table}.${column} 迁移失败（忽略）:`, e.message);
+  }
+}
+addColumn('signals', 'published_at', 'published_at TEXT');
+addColumn('signals', 'extra', 'extra TEXT');
+addColumn('trends', 'published_at', 'published_at TEXT');
+addColumn('trends', 'extra', 'extra TEXT');
+
+// 迁移：相关性证据字段（evidence=原文逐字引用的匹配证据，why=为何相关，coverage=覆盖度）
+addColumn('signals', 'evidence', 'evidence TEXT');
+addColumn('signals', 'why', 'why TEXT');
+addColumn('signals', 'coverage', 'coverage REAL');
+addColumn('trends', 'evidence', 'evidence TEXT');
+addColumn('trends', 'why', 'why TEXT');
+addColumn('trends', 'coverage', 'coverage REAL');
+
+// 相关性闸门丢弃统计（按关键词 + 原因累计，便于查看过滤效果）
 try {
-  db.prepare("UPDATE trend_runs SET status='interrupted', finished_at=?, note=COALESCE(note,'')||' (���������ж�)' WHERE status='running'").run(now());
+  db.exec(`
+CREATE TABLE IF NOT EXISTS relevance_drops(
+  keyword_id INTEGER NOT NULL,
+  reason TEXT NOT NULL,
+  hits INTEGER NOT NULL DEFAULT 0,
+  last_at TEXT,
+  PRIMARY KEY(keyword_id, reason)
+);`);
+} catch (e) {
+  console.warn('[db] relevance_drops 创建失败（忽略）:', e.message);
+}
+
+// 启动清理：把上次异常退出遗留的 running 批次标记为中断
+try {
+  db.prepare("UPDATE trend_runs SET status='interrupted', finished_at=?, note=COALESCE(note,'')||' (服务重启中断)' WHERE status='running'").run(now());
 } catch { /* ignore */ }
 
 export function touchSource(name, { ok, count, error }) {
@@ -128,7 +167,7 @@ export function touchSource(name, { ok, count, error }) {
   ).run(name, ok ? now() : null, error ? String(error).slice(0, 300) : null, now(), count || 0);
 }
 
-// ---------- ���������Զ������� ----------
+// ---------- 低质域名自动灰名单 ----------
 function hostOf(url) {
   try {
     return String(new URL(url).hostname).replace(/^www\./, '').toLowerCase();
@@ -137,7 +176,7 @@ function hostOf(url) {
   }
 }
 
-// �ۼ�һ�Ρ�AI �ж�Ϊ�١���¼����Դ������authentic=true ʱ�ۼƿ��ż�¼
+// 累计一次“AI 判定为假”记录到来源域名；authentic=true 时累计可信记录
 export function bumpDomainFake(url, confirmed = false) {
   const host = hostOf(url);
   if (!host) return 0;
@@ -152,7 +191,7 @@ export function bumpDomainFake(url, confirmed = false) {
   return getDomainFakeHits(url);
 }
 
-// ��ȡĳ������������������>= GREYLIST_HITS ����Ϊ����������
+// 读取某域名灰名单命中数（>= GREYLIST_HITS 即视为低质域名）
 export function getDomainFakeHits(url) {
   const host = hostOf(url);
   if (!host) return 0;

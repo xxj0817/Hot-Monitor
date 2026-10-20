@@ -180,6 +180,8 @@ export async function lookupAccount(name) {
     fans: Number(best.fans) || 0,
     videos: Number(best.videos) || 0,
     sign: String(best.usign || '').trim(),
+    // true when the keyword IS the account display name, not just a fuzzy hit
+    exact: n(best.uname) === target,
   };
   touchSource('bilibili:account', { ok: true, count: acc.mid ? 1 : 0 });
   return acc;
@@ -223,4 +225,46 @@ export async function collectAccount(name, lookbackHours = 24) {
   if (!acc) return { account: null, items: [] };
   const items = await accountVideos(acc, lookbackHours);
   return { account: acc, items };
+}
+
+// Account mode uses a wider window than keyword search: an UP owner uploads a
+// few times a week, so a 24h window would report "nothing found" for a search
+// that is really about the account itself.
+const ACCOUNT_WINDOW_HOURS = 24 * 7;
+
+// Strip account markers so "xxxUP主" / "@xxx" / "xxx博主" resolve to the real
+// display name Bilibili search expects.
+export function stripAccountMarker(name) {
+  const s = String(name || '').trim().replace(/^@+/, '').trim();
+  return s
+    .replace(/(up\s*\u4e3b|UP\s*\u4e3b|up|UP|\u535a\u4e3b|\u5b98\u65b9|\u8d26\u53f7|\u5de5\u4f5c\u5ba4|\u56e2\u961f|\u9891\u9053)$/, '')
+    .trim();
+}
+
+// Single entry point for watcher/trend.
+//   - keyword is an explicit account marker (博主/官方/@/up主...)  -> account only
+//   - keyword exactly equals an UP display name                   -> account + topic
+//   - otherwise                                                   -> topic only
+// Fuzzy (non-exact) account hits are ignored so a topic keyword is never
+// silently replaced by an unrelated account. When a marked keyword cannot be
+// resolved as an account, the marker is stripped and a keyword video search is
+// used instead, so an account-style search never comes back empty.
+export async function collectForKeyword(name, lookbackHours = 24) {
+  const explicit = isAccountKeyword(name);
+  const cleaned = stripAccountMarker(name) || String(name || '').trim();
+  let acc = await lookupAccount(name);
+  if ((!acc || !acc.exact) && cleaned && cleaned !== name) {
+    const alt = await lookupAccount(cleaned);
+    if (alt && alt.exact) acc = alt;
+  }
+  const asAccount = !!acc && (explicit || acc.exact);
+  const items = [];
+  if (asAccount) {
+    const window = Math.max(Number(lookbackHours) || 24, ACCOUNT_WINDOW_HOURS);
+    items.push(...(await accountVideos(acc, window)));
+  }
+  // topic keywords keep the general video search so topical uploads survive
+  if (!explicit) items.push(...(await searchVideos(name, lookbackHours)));
+  else if (!items.length) items.push(...(await searchVideos(cleaned, lookbackHours)));
+  return { account: asAccount ? acc : null, items };
 }

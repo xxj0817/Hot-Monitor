@@ -124,7 +124,7 @@ async function searchBing(query, lookbackHours) {
     if (!hrefM || !titleM) continue;
     const u = decodeEntities(hrefM[1]);
     if (!/^https?:\/\//.test(u)) continue;
-    const title = stripTags(titleM[1]);
+    const title = decodeEntities(stripTags(titleM[1]));
     const pM = block.match(/<p[^>]*>(.*?)<\/p>/s);
     const summary = pM ? stripTags(pM[1]) : '';
     const iso = dateFromBlock(block, /<span[^>]*class="[^"]*news_dt[^"]*"[^>]*>([\s\S]*?)<\/span>/i);
@@ -146,7 +146,7 @@ async function search360News(query) {
     const u = decodeEntities(urlM[1]);
     if (!/^https?:\/\//.test(u)) continue;
     const tM = block.match(/<h3[^>]*class="[^"]*g-title[^"]*"[^>]*>([\s\S]*?)<\/h3>/i);
-    const title = tM ? stripTags(tM[1]) : '';
+    const title = tM ? decodeEntities(stripTags(tM[1])) : '';
     const sM = block.match(/<p[^>]*class="[^"]*summary[^"]*"[^>]*>([\s\S]*?)<\/p>/i);
     const summary = sM ? stripTags(sM[1]) : '';
     const timeM = block.match(/<span[^>]*class="[^"]*time[^"]*"[^>]*>([\s\S]*?)<\/span>/i);
@@ -169,7 +169,7 @@ async function search360(query) {
     if (!aM) continue;
     const u = decodeEntities(aM[1]);
     if (!/^https?:\/\//.test(u)) continue;
-    const title = stripTags(aM[2]);
+    const title = decodeEntities(stripTags(aM[2]));
     const pM = block.match(/<p[^>]*class="[^"]*res-desc[^"]*"[^>]*>([\s\S]*?)<\/p>/i);
     const summary = pM ? stripTags(pM[1]) : '';
     const iso = dateFromBlock(block, /<span[^>]*class="[^"]*(res-list-time|res-site-time|time)[^"]*"[^>]*>([\s\S]*?)<\/span>/i);
@@ -192,7 +192,7 @@ async function searchSogou(query) {
     let u = decodeEntities(aM[1]);
     if (u.startsWith('/')) u = 'https://www.sogou.com' + u;
     if (!/^https?:\/\//.test(u)) continue;
-    const title = stripTags(aM[2]);
+    const title = decodeEntities(stripTags(aM[2]));
     const sM = block.match(/<div[^>]*class="[^"]*(space-txt|fz-mid|text-layout|str_info)[^"]*"[^>]*>([\s\S]*?)<\/div>/i);
     const summary = sM ? stripTags(sM[2]) : '';
     const iso = parseDateText(stripTags(block).slice(0, 400));
@@ -239,7 +239,7 @@ async function searchBaidu(query) {
   while ((m = re.exec(body))) {
     const u = decodeEntities(m[1]).replace(/^\/\/+/, 'https://');
     if (!/^https?:\/\//.test(u)) continue;
-    const title = stripTags(m[2]);
+    const title = decodeEntities(stripTags(m[2]));
     const tail = body.slice(m.index, m.index + 2500);
     const sM = tail.match(/<span[^>]*class="[^"]*content-right[^"]*"[^>]*>([\s\S]*?)<\/span>/i)
       || tail.match(/<div[^>]*class="[^"]*c-abstract[^"]*"[^>]*>([\s\S]*?)<\/div>/i);
@@ -287,7 +287,55 @@ async function searchEngine(query, engineId, lookbackHours) {
   return [];
 }
 
+function isWeiboUrl(url) {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return host === 'weibo.com' || host.endsWith('.weibo.com') || host === 'weibo.cn' || host.endsWith('.weibo.cn');
+  } catch {
+    return false;
+  }
+}
+
 export const ENGINE_IDS = ['so360news', 'bing', 'sogou', 'so360', 'baidu'];
+
+// Only these engines return usable results for a `site:weibo.com` query.
+// News/sogou/bing answer site-restricted queries with empty or unrelated hits.
+const WEIBO_CAPABLE_ENGINES = ['so360', 'baidu'];
+
+// Search-engine indexed Weibo pages. This avoids direct Weibo crawling and
+// keeps the source usable without an API key.
+export async function searchWeibo(query, lookbackHours = 24) {
+  const s = getSettings();
+  const configured = Array.isArray(s.websearchEngines) && s.websearchEngines.length
+    ? s.websearchEngines
+    : ENGINE_IDS;
+  const engines = WEIBO_CAPABLE_ENGINES.filter((id) => configured.includes(id));
+  if (!engines.length) engines.push('so360');
+  const results = [];
+  for (const engineId of engines) {
+    try {
+      const list = await searchEngine(`site:weibo.com ${query}`, engineId, lookbackHours);
+      const accepted = [];
+      for (const r of list) {
+        if (!isWeiboUrl(r.url)) continue;
+        const item = norm({ ...r, source: 'weibo', publishedAt: r.publishedAt });
+        if (!item) continue;
+        item.extra = { ...(item.extra || {}), engine: engineId, tsKnown: true, evergreen: looksEvergreen(item) };
+        // Indexed Weibo hits only enter the pipeline when the engine exposes a
+        // real publish date inside the lookback window. Undated hits are almost
+        // always stale and would otherwise pollute ranking (the exact stale
+        // content problem the freshness work was meant to fix).
+        if (!r.tsKnown || !withinLookback(item, lookbackHours)) continue;
+        accepted.push(item);
+      }
+      touchSource(`weibo:${engineId}`, { ok: true, count: accepted.length });
+      results.push(...accepted);
+    } catch (e) {
+      touchSource(`weibo:${engineId}`, { ok: false, count: 0, error: e.message });
+    }
+  }
+  return results;
+}
 
 // Collect from all enabled engines (settings.websearchEngines). Engine
 // failures are recorded and skipped. Items carry extra.tsKnown / extra.evergreen

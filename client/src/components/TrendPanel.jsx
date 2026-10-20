@@ -1,11 +1,28 @@
+import { useMemo } from 'react';
 import { Icon, LevelBadge, SourceTag, Sect } from './misc.jsx';
 import { HeatGrad } from './ui/aceternity.jsx';
 import { relTime } from '../lib/api.js';
+import ItemMeta from './ItemMeta.jsx';
+import FilterBar, { applyFilters, sortRows, mergePrefs, TREND_SORTS } from './FilterBar.jsx';
 
 const TONE = { S: 'a', A: 'a', B: 'b', C: 'c' };
 
-export default function TrendPanel({ scope, trends, refreshing, onRefresh, lastRun, newIds }) {
-  const top = trends.filter((t) => t && t.title);
+// 热点榜无 verdict 字段：把判定筛选映射到 credible（1=已确认 / 0=疑似假 / null=待核验）
+function trendVerdict(t) {
+  if (t.credible === 1) return 'authentic';
+  if (t.credible === 0) return 'fake';
+  return 'unverified';
+}
+
+export default function TrendPanel({ scope, trends, refreshing, onRefresh, lastRun, newIds, viewPrefs, onViewPrefs }) {
+  const prefs = useMemo(() => mergePrefs(viewPrefs), [viewPrefs]);
+  const top = useMemo(
+    () => sortRows(applyFilters((trends || []).filter((t) => t && t.title), prefs, {
+      timeField: 'updated_at',
+      verdictOf: trendVerdict,
+    }), prefs),
+    [trends, prefs],
+  );
   return (
     <section className="glass dash-col flex min-h-0 flex-col overflow-hidden rounded-2xl">
       <Sect icon={Icon.flame}
@@ -19,6 +36,8 @@ export default function TrendPanel({ scope, trends, refreshing, onRefresh, lastR
         }>
         热点雷达 <span className="text-faint normal-case tracking-normal">TREND-RADAR</span>
       </Sect>
+
+      <FilterBar prefs={prefs} onChange={onViewPrefs} sorts={TREND_SORTS} />
 
       {scope?.queries?.length > 0 && (
         <div className="flex flex-wrap gap-1.5 border-b border-line-soft px-4 py-2">
@@ -81,8 +100,7 @@ export default function TrendPanel({ scope, trends, refreshing, onRefresh, lastR
                       <SourceTag source={t.source} />
                       <span className="inline-flex items-center gap-1.5"><span className={`dot ${cred}`} style={{ width: 6, height: 6 }} /> 可信度</span>
                       <span className="ml-auto">{relTime(t.updated_at || t.first_seen)}</span>
-                    </div>
-                  </div>
+                    </div>                    <ItemMeta item={t} density={prefs.density} timeField="first_seen" />                  </div>
                   {!demo && (
                     <a href={t.url} target="_blank" rel="noreferrer" aria-label="打开来源"
                       className="hidden flex-none text-faint transition-colors hover:text-cyan group-hover:block">

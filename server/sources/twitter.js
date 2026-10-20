@@ -7,7 +7,8 @@ import { norm, withinLookback } from './base.js';
 import { touchSource } from '../db.js';
 
 const BASE = 'https://api.twitterapi.io';
-const LOOKBACK_S = 24 * 3600;
+// fallback window when the caller does not pass one (matches the 7-day default)
+const DEFAULT_LOOKBACK_HOURS = 168;
 
 export function isConfigured() {
   return !!env.twitterKey;
@@ -63,13 +64,14 @@ function parseDate(s) {
 }
 
 // queryExpr 为 Twitter 搜索表达式，如: ("claude" OR "Claude") -is:retweet
-export async function searchTweets(queryExpr, lookbackHours = 24) {
+export async function searchTweets(queryExpr, lookbackHours = DEFAULT_LOOKBACK_HOURS) {
   if (!isConfigured()) {
     const err = new Error('TWITTER_API_KEY 未配置');
     touchSource('twitter', { ok: false, count: 0, error: err.message });
     throw err;
   }
-  const sinceTime = Math.floor(Date.now() / 1000) - LOOKBACK_S;
+  const hours = Number(lookbackHours) > 0 ? Number(lookbackHours) : DEFAULT_LOOKBACK_HOURS;
+  const sinceTime = Math.floor(Date.now() / 1000) - hours * 3600;
   const expr = `${queryExpr} -is:retweet -is:reply since_time:${sinceTime}`;
   const url = `${BASE}/twitter/tweet/advanced_search?queryType=Latest&query=${encodeURIComponent(expr)}`;
   const res = await fetch(url, {

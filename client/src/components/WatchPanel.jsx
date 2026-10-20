@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api, relTime } from '../lib/api.js';
 import { Icon, SigLight, VerdictBadge, SourceTag, Legend, Sect } from './misc.jsx';
+import FilterBar, { applyFilters, sortRows, mergePrefs, groupByDate } from './FilterBar.jsx';
+import ItemMeta, { ReasonText, RelevanceBlock, agoOf } from './ItemMeta.jsx';
 import { GlowCard } from './ui/aceternity.jsx';
 
-function SigRow({ sig, fresh }) {
+function SigRow({ sig, fresh, density, reasonOpen, onToggleReason }) {
   const demo = !sig.url || String(sig.url).includes('demo.hotmonitor.local');
   return (
-    <div className={`${fresh ? 'pop-in' : ''} group flex items-start gap-2.5 rounded-xl px-3 py-2 transition-colors hover:bg-white/[0.035]`}>
+    <div className={`${fresh ? 'pop-in' : ''} group flex items-start gap-2.5 rounded-xl px-3 ${density === 'compact' ? 'py-1.5' : 'py-2'} transition-colors hover:bg-white/[0.035]`}>
       <span className="mt-1.5 flex-none"><SigLight verdict={sig.verdict} /></span>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -27,19 +29,27 @@ function SigRow({ sig, fresh }) {
             {sig.title}
           </a>
         )}
-        {sig.reason && <p className="mt-0.5 line-clamp-1 text-[11px] text-faint" title={sig.reason}>{sig.reason}</p>}
+        <ItemMeta item={sig} density={density} />
+        <RelevanceBlock item={sig} terms={[sig.keyword]} open={reasonOpen} onToggle={onToggleReason} compact={density === 'compact'} />
       </div>
       {!demo && (
-        <a href={sig.url} target="_blank" rel="noreferrer" aria-label="打开链接"
-          className="mt-1 hidden flex-none text-faint transition-colors hover:text-vio group-hover:block">
-          <Icon.ext size={13} />
-        </a>
+        <span className="mt-1 hidden flex-none items-center gap-1.5 group-hover:flex">
+          <button type="button" aria-label="复制链接" title="复制链接"
+            className="text-faint transition-colors hover:text-vio"
+            onClick={() => { try { navigator.clipboard.writeText(sig.url); } catch { /* ignore */ } }}>
+            <Icon.copy size={13} />
+          </button>
+          <a href={sig.url} target="_blank" rel="noreferrer" aria-label="dl"
+            className="text-faint transition-colors hover:text-cyan">
+            <Icon.ext size={13} />
+          </a>
+        </span>
       )}
     </div>
   );
 }
 
-export default function WatchPanel({ keywords, signalsByKw, busyId, onScan, onAdd, onToggle, onRemove, lastSeen }) {
+export default function WatchPanel({ keywords, signalsByKw, busyId, onScan, onAdd, onToggle, onRemove, lastSeen, viewPrefs, onViewPrefs }) {
   const [name, setName] = useState('');
   const [adding, setAdding] = useState(false);
   const [confirmId, setConfirmId] = useState(null);
@@ -48,8 +58,15 @@ export default function WatchPanel({ keywords, signalsByKw, busyId, onScan, onAd
   const [expanded, setExpanded] = useState({});
   const [full, setFull] = useState({});
   const [loadingId, setLoadingId] = useState(null);
+  const [reasonOpen, setReasonOpen] = useState({});
 
   const active = useMemo(() => keywords.filter((k) => k.enabled).length, [keywords]);
+  const prefs = useMemo(() => mergePrefs(viewPrefs), [viewPrefs]);
+  // 关键词筛选：只看某一个关键词，或查看全部
+  const shown = useMemo(
+    () => (prefs.keyword ? keywords.filter((k) => k.name === prefs.keyword) : keywords),
+    [keywords, prefs.keyword],
+  );
 
   async function toggleExpand(kw) {
     const isOpen = !!expanded[kw.id];
@@ -94,6 +111,8 @@ export default function WatchPanel({ keywords, signalsByKw, busyId, onScan, onAd
         关键词哨兵 <span className="text-faint normal-case tracking-normal">KW-WATCH</span>
       </Sect>
 
+      <FilterBar prefs={prefs} onChange={onViewPrefs} keywords={keywords.map((k) => k.name)} showReason compact />
+
       <div className="flex gap-2 p-3">
         <input className="inp flex-1" placeholder="输入想盯的关键词，如 Claude / Gemini / Sora…"
           value={name} maxLength={40} aria-label="新关键词"
@@ -115,7 +134,11 @@ export default function WatchPanel({ keywords, signalsByKw, busyId, onScan, onAd
           </div>
         )}
 
-        {keywords.map((kw, idx) => {
+        {shown.length === 0 && keywords.length > 0 && (
+          <div className="py-8 text-center font-mono text-[12px] text-faint">当前筛选下没有关键词，点「重置」查看全部</div>
+        )}
+
+        {shown.map((kw, idx) => {
           const sigs = signalsByKw[kw.name] || [];
           const busy = busyId === kw.id;
           const freshIds = lastSeen || {};
@@ -151,11 +174,25 @@ export default function WatchPanel({ keywords, signalsByKw, busyId, onScan, onAd
                   <div className="px-3 pb-1 text-[11px] text-faint">暂无信号 · 等自动扫描或点「扫描」立即触发</div>
                 ) : (() => {
                   const open = !!expanded[kw.id];
-                  const list = open && full[kw.id] ? full[kw.id] : sigs;
-                  const total = open && full[kw.id] ? full[kw.id].length : sigs.length;
+                  const raw = open && full[kw.id] ? full[kw.id] : sigs;
+                  const list = sortRows(applyFilters(raw, prefs, { timeField: 'seen_at' }), prefs);
+                  const total = list.length;
+                  const visible = open ? list : list.slice(0, 4);
+                  const renderRow = (s) => (
+                    <SigRow key={s.id} sig={s} fresh={idx < 3 && freshIds[s.id]} density={prefs.density}
+                      reasonOpen={prefs.reasonOpenAll || !!reasonOpen[s.id]}
+                      onToggleReason={() => setReasonOpen((m) => ({ ...m, [s.id]: !(m[s.id] || prefs.reasonOpenAll) }))} />
+                  );
                   return (
                     <div>
-                      {(open ? list : list.slice(0, 4)).map((s) => <SigRow key={s.id} sig={s} fresh={idx < 3 && freshIds[s.id]} />)}
+                      {prefs.groupByDate
+                        ? groupByDate(visible).map(([label, rows]) => (
+                          <div key={label}>
+                            <div className="px-3 pb-0.5 pt-1.5 font-mono text-[10px] tracking-wider text-faint">{label} · {rows.length}</div>
+                            {rows.map(renderRow)}
+                          </div>
+                        ))
+                        : visible.map(renderRow)}
                       <div className="flex items-center justify-between px-3 pt-1">
                         <span className="font-mono text-[10px] text-faint">共 {total} 条{open ? '' : ' 历史信号'}</span>
                         {(total > 4 || open) && (

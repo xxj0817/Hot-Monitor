@@ -38,6 +38,9 @@ export const api = {
   metaSources: () => req('GET', '/meta/sources'),
   domains: () => req('GET', '/meta/domains'),
   clearDomains: () => req('DELETE', '/meta/domains'),
+  expansions: () => req('GET', '/expansions'),
+  refreshExpansions: (keyword) => req('POST', '/expansions/refresh', keyword ? { keyword } : {}),
+  relevanceDrops: () => req('GET', '/relevance/drops'),
 };
 
 // 订阅 SSE 事件：返回取消函数

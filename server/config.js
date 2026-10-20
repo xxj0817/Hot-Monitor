@@ -18,17 +18,39 @@ export const env = {
 
 const DEFAULTS = {
   pollMinutes: 30,
-  // 默认免费模型：账号无余额也可用。充值后可在 UI/设置中切换为更强模型。
+  // 默认免费模型：账号无余额也可用；充值后可在 UI/设置中切换为更强模型。
   model: 'nvidia/nemotron-3-super-120b-a12b:free',
-  lookbackHours: 24,
+  // sentinel + radar lookback window: 168h = 7 days; anything older is dropped
+  lookbackHours: 168,
   topTrends: 12,
-  sourceToggles: { websearch: true, twitter: true, bilibili: true, mock: false },
+  sourceToggles: { websearch: true, weibo: false, twitter: true, bilibili: true, mock: false },
   // 网页搜索启用引擎（bing=必应, so360=360搜索, baidu=百度尽力而为）
   websearchEngines: ['so360news', 'bing', 'sogou', 'so360', 'baidu'],
   // Twitter/X 收录最低热度门槛：赞+转+评 >= 该值才收录（排除回复帖）
   twitterMinEngagement: 100,
-  // B站收录最低播放量门槛（0=不过滤；无需 Key，公开接口+cookie）
+  // B站收录最低播放量门槛：0=不过滤；无需 Key，公开接口+cookie。
   bilibiliMinPlay: 50000,
+  // 列表排序与筛选偏好（前端界面持久化）
+  viewPrefs: {
+    sort: 'heat',
+    rangeHours: 168,
+    verdicts: [],
+    sources: [],
+    keyword: '',
+  },
+  // 关键词相关性闸门：低于 minCoverage 的条目直接丢弃，不消耗 AI 调用
+  //   minCoverage 0~1  命中多少实体词才算相关（1=全部命中）
+  //   aliases     实体别名，如 {"claude":["anthropic"]}
+  //   excludeTerms 出现即丢弃；mustInclude 必须全部出现
+  relevance: {
+    minCoverage: 1,
+    dropBelowMin: true,
+    aliases: {},
+    excludeTerms: [],
+    mustInclude: [],
+  },
+  // 查询扩展：每轮扫描额外使用多少个扩展检索词（0=只用原关键词）
+  expandQueries: 1,
   scope: {
     name: 'AI 编程',
     queries: ['AI 编程', '大模型', 'llm', 'coding agent', 'ai programming'],
