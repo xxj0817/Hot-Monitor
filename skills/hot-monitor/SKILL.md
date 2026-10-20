@@ -1,95 +1,124 @@
 ---
 name: hot-monitor
-description: >-
-  AI 热点监控与发现技能。当用户想要监控某个关键词/产品的动态、第一时间了解某
-  领域（如 AI 编程、大模型）的最新热点、识别资讯真伪（过滤标题党/假消息/营销
-  号）时使用。自动执行：多信源采集（Bing+360搜索+百度 + B站视频(含 UP 主/博主/官方账号，无 Key) + 可选 Twitter/X
-  高级搜索，跨引擎交叉印证）-> OpenRouter AI 判定相关性与真实性 -> 输出结构化热点/信号。
+description: 'WORKFLOW SKILL — AI 热点监控与发现：关键词哨兵（某模型/产品/账号/话题有没有真实新动态）、领域热点雷达（如 AI 编程圈有哪些热点）、单条资讯的相关性与真伪判定、关键词等价叫法扩展。USE FOR: 用户问"某关键词最近有什么新消息""帮我盯着 X""这条消息可信吗""这是不是标题党/假消息""AI 圈最近有什么热点""这个内容和 X 相关吗""X 还有哪些叫法"。DO NOT USE FOR: 与热点/资讯监控无关的常规开发任务；需要 7x24 常驻后台与桌面通知（那属于 Hot-Monitor 网页版项目，不在本技能范围）。技能完全自包含：不需要启动任何服务、不需要数据库；未配置 OPENROUTER_API_KEY 时仍可用本地规则完成"相关性"判定与热点排序（"真伪"判定需要 Key，缺失时输出 unverified 并明确说明）。'
+argument-hint: 关键词或领域，例如：Claude Sonnet 4.6 / 鱼皮的AI导航 / AI 编程
 ---
 
-# hot-monitor：AI 热点雷达技能
+# hot-monitor：AI 热点监控与发现技能
 
-给 AI 使用的「热点监控 + 真伪识别」工具。你（AI）调用本技能内置脚本，即可：
+让任何 AI 助手具备"盯热点"的能力：给一个关键词或一个领域，自动多信源采集、按关键词相关性过滤、判定可信度，输出**带证据**的结构化结论。
 
-- 监控某关键词是否出现「真实可信」的新动态（并区分真消息 / 假消息 / 无关蹭词）。
-- 自动发现某领域（范围）的最新热点，按热度输出榜单。
+## 何时使用
 
-## 前置条件
+- 用户想知道**某个关键词**（模型、产品、账号、话题）最近有没有真实新动态
+- 用户想知道**某个领域**（如"AI 编程""大模型"）有哪些热点、值不值得追
+- 用户拿一条资讯来问"可信吗""是不是标题党""跟 X 有关系吗"
+- 需要为关键词生成**等价叫法**（换序、加减修饰词、简称全称）以便检索更全
 
-- 需要 Node.js 18+（建议 20+），脚本无第三方依赖（仅用内置 fetch）。
-- OpenRouter Key（可选，但强烈建议）：项目 `.env` 或环境变量 `OPENROUTER_API_KEY`。
-  - 无 Key 时自动进入离线演示模式（结果带 `mode: "mock"` 与演示数据）。
-  - 模型：默认 `nvidia/nemotron-3-super-120b-a12b:free`（免费可用），可用 `HOT_MONITOR_MODEL` 覆盖。
-- Twitter/X（可选）：`.env` 的 `TWITTER_API_KEY`（twitterapi.io），无则自动跳过 Twitter 信源。
-  - Twitter 已自动排除回复帖，且要求 赞+转+评 >= `HOT_MONITOR_MIN_ENG`（默认 100）才收录，可设 0 关闭。
-- B站（内置，无需任何 Key）：自动搜索视频；关键词含 @/博主/官方/UP 主/账号/工作室/团队/频道 等时，自动当作账号并直接抓取该 UP 主的最新视频与资料。
-- 注意：脚本含中文，需以 UTF-8 保存/运行（Windows 下勿用 GBK）。
+## 核心能力（8 个命令）
 
-## 使用方式
+全部命令形如 `node scripts/hot-monitor.mjs <命令> [...参数]`，脚本路径相对技能目录。
 
-先定位脚本目录：本技能文件同级下有 `monitor.mjs`。在项目根目录执行：
-
-### 1) 监控关键词（判断某关键词是否出现真动态）
-
-```bash
-node skills/hot-monitor/monitor.mjs keyword "Claude" --hours 24 --limit 8 --json
-```
-
-参数：
-
-| 参数 | 说明 | 默认 |
+| 命令 | 作用 | 典型场景 |
 |---|---|---|
-| keyword <词> | 要监控的关键词 | 必填 |
-| --hours N | 只看最近 N 小时 | 24 |
-| --limit N | 最多判定 N 条（控制 AI 成本） | 8 |
-| --json | 输出 JSON（推荐机器解析） | 关 |
-| --mock | 强制离线演示模式 | 自动 |
-| --min-eng N | Twitter 收录最低互动（赞+转+评），0=不限 | 100 |
+| `scan <关键词>` | 采集 + 相关性闸门 + 判定，输出信号与丢弃统计 | "帮我看看 X 有什么新消息" |
+| `signals <关键词>` | 同 scan，只给"强相关且未判假"的结论清单 | "X 有什么值得汇报的" |
+| `trend [领域]` | 领域热点榜（热度分级 S/A/B/C） | "AI 圈最近有啥热点" |
+| `judge <关键词> --title "标题"` | **单条内容**判定：相关性 + 真伪 | "这条消息可信吗" |
+| `expand <关键词>` | 等价叫法 + 建议检索词 | "X 还有哪些叫法" |
+| `eval [--ai]` | 跑相关性用例集，输出准确率与误判 | "你判得准吗" |
+| `status [--net]` | 自检：Node / Key / 用例 / 联网 | 排查环境问题 |
+| `help` | 帮助 | - |
 
-每条结果含 AI 判定字段：`verdict`（authentic 真实可信 / fake 假消息或营销 / unrelated 无关蹭词 / unverified 无法验证）、`related`、`authentic`、`score`、`reason`（一句话理由），以及跨引擎印证 `engineCount`（被几个独立信源同时报道）。
+**默认加 `--json`**（结构化输出便于你解析），需要给人看时再用纯文本输出。
 
-**AI 如何解读**：只有 `verdict === "authentic"`（或 `demo`）的条目才应告知用户「确认是真消息」；`fake` 明确提醒用户是假/营销内容；`unrelated` 是标题党蹭词；`unverified` 只能说「有相关讨论，但真实性未能确认」。不要擅自把 unverified 当真实发布。
+## 工作流
 
-### 2) 发现领域热点（趋势榜单）
+### 1. 关键词哨兵（最常用）
 
-```bash
-node skills/hot-monitor/monitor.mjs trend "AI 编程" --queries "AI 编程,大模型,coding agent,ai programming" --limit 10 --json
+```
+node scripts/hot-monitor.mjs scan "Claude Sonnet 4.6" --days 7 --limit 8 --json
 ```
 
-参数：`trend <领域名>`、`--queries "词1,词2,..."`（中英文检索词，逗号分隔，可省略）、`--limit`、`--hours`、`--min-eng`、`--json`。
+流程：本地查询扩展 → 多信源采集（360资讯/必应/360搜索 + B站，可选 X）→ 关键词相关性闸门（丢无关内容）→ AI 判定（无 Key 则本地规则）→ 按评分排序。
 
-返回按 `heat`（0-100）降序的榜单，含 `level`（S/A/B/C）、`title`、`url`、`source`、`summary`。
+输出里的关键字段：
+- `gate.dropped`：被丢掉的无关内容统计（`no-term` 完全没提关键词、`low-coverage` 只提了一部分、`excluded` 命中排除词）
+- `items[].coverage`：关键词覆盖度（1 = 全部实体词都命中）
+- `items[].evidence` / `items[].why`：**相关性证据**（原文逐字摘录）与理由 —— 汇报时用它说明"为什么这条算相关"
+- `items[].reason`：真伪判定理由
 
-## 输出示例（--json，keyword）
+### 2. 领域热点雷达
 
-```json
-{
-  "tool": "hot-monitor",
-  "action": "keyword",
-  "keyword": "Claude",
-  "mode": "openrouter",
-  "model": "nvidia/nemotron-3-super-120b-a12b:free",
-  "count": 6,
-  "items": [
-    {
-      "title": "Anthropic 发布 Claude 新版本…",
-      "url": "https://example.com/...",
-      "source": "bing",
-      "verdict": "authentic",
-      "related": 1,
-      "authentic": 1,
-      "score": 88,
-      "reason": "官方渠道发布，信息具体可信"
-    }
-  ]
-}
+```
+node scripts/hot-monitor.mjs trend "AI 编程" --days 3 --limit 10 --json
 ```
 
-## 注意事项（务必转告用户或据此行事）
+多检索词采集 → 跨源交叉印证（`engineCount >= 2` 视为多源印证，更可信）→ 热度分级。领域话题宽泛，**不做**关键词覆盖度门槛，只用排除词过滤；不要因为某条没字面命中领域词就认为它无关。
 
-- 网页搜索为无 API 爬虫：**内部已控频**（请求间隔 3 秒+），不要并发调用本脚本；单个关键词扫描通常 20~60 秒。
-- 免费模型有速率限制：大批量任务请分批或稍候重试。
-- Twitter 高级搜索仅返回最近约 24 小时内推文（`since_time` 过滤），且 `-is:retweet` 已排除转推。
-- 判定为「演示(mock)」的条目 URL 为 `demo.hotmonitor.local`，不可作为真实来源引用。
-- 判定的「真实性」基于标题/摘要/域名推断，**不能替代点开原文核实**；对 high-stakes 结论应建议用户查看来源链接。
-- 脚本退出码 0 = 成功；网络/Key 错误会打印错误到 stderr 并以非 0 退出。
+### 3. 单条内容核验（给别的 AI 复核用）
+
+```
+node scripts/hot-monitor.mjs judge "GPT-6" --title "GPT-6 向全球用户开放！" --summary "..." --json
+```
+
+适合：用户转来一条新闻/推文要你判断"值不值得关注""是不是假的"。
+
+### 4. 判定质量自检
+
+```
+node scripts/hot-monitor.mjs eval            # 本地闸门（免费、确定性）
+node scripts/hot-monitor.mjs eval --ai       # 追加真 AI 判定（消耗额度）
+```
+
+改过规则或提示词后跑一次，看准确率有没有下降。
+
+## 输出解读规范（重要）
+
+判定值只有五类，汇报时**必须**按下面的话术，不要夸大：
+
+| verdict | 含义 | 应该说 | 不要说 |
+|---|---|---|---|
+| `authentic` | 相关 + 可信（多源印证或官方来源） | "已确认的新动态" | - |
+| `unverified` | 相关但未能证实（**无 Key 时全部为这个**） | "有讨论，尚未证实" | "确认为真" |
+| `fake` | 疑似假消息/营销号/旧闻炒作 | "疑似不实，谨慎对待" | 当成事实引用 |
+| `unrelated` | 与关键词无关（闸门判丢） | "与 X 无关" | 当作 X 的动态 |
+| `demo` | 演示数据（`--mock`） | "演示样例" | 当成真实情报 |
+
+其它约束：
+- 每条结论都要带上 `url` 让用户能自己核实；没有链接的结论不要给。
+- `coverage < 1` 的条目说明只命中了部分实体词（例如只提"Sonnet"没提版本号），汇报时降低语气。
+- `mode: "no-key"` 时，明确告诉用户"只做了相关性判定，真伪未核验"，并说明配置 `OPENROUTER_API_KEY` 后可获得真伪结论。
+- 不要编造采集结果；命令失败就如实说明（网络受限/被风控），可建议 `--mock` 先验证链路。
+
+## 参数速查
+
+| 选项 | 说明 |
+|---|---|
+| `--json` | 结构化输出（推荐） |
+| `--limit N` | 条数（scan 默认 8，trend 默认 10） |
+| `--days N` | 时间窗（scan 默认 7，trend 默认 3） |
+| `--queries "a,b,c"` | trend 的检索词 |
+| `--exclude "词1,词2"` | 排除词：出现即丢弃（例：监控 Claude 时排除 openclaw） |
+| `--must "词1,词2"` | 必须全部出现才保留 |
+| `--min-coverage 0\|0.5\|1` | 关键词命中要求，默认 1（全部实体词） |
+| `--expand-queries N` | 额外用几个扩展检索词（默认 1） |
+| `--engines "so360news,bing,so360"` | 启用哪些搜索引擎 |
+| `--no-bili` / `--no-ai` / `--mock` | 关闭 B站 / 不使用 AI / 离线演示 |
+| `--out 文件.json` | 结果同时写文件 |
+| `--model 名称` | 覆盖默认模型 |
+
+## 资源
+
+- [references/usage.md](./references/usage.md)：命令详解、输出字段含义、常见问题
+- [references/verdicts.md](./references/verdicts.md)：判定语义与汇报话术细则
+- [evals/cases.jsonl](./evals/cases.jsonl)：相关性用例集（含"该丢的反例"）
+- [scripts/install.mjs](./scripts/install.mjs)：一键安装到 AI 的技能目录
+
+## 注意事项
+
+- 采集是**串行 + 控频**（每请求间隔约 3 秒），单次 `scan` 可能耗时 30-90 秒；不要并发调用多次。
+- 首次运行不需要任何配置；有 `OPENROUTER_API_KEY`（项目 `.env` 或环境变量）时才会启用 AI 判定与 AI 扩展。
+- 抓取结果可能被目标站点风控（尤其百度/X），失败只是少一个信源，不影响整体结论。
+- Key 只从环境变量/`.env` 读取，**不要**把它写进任何输出或提交到仓库。
+- 采集到的内容属于他人作品：引用时给出来源链接，不要整段复制。

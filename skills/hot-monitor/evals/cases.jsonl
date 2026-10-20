@@ -1,0 +1,17 @@
+{"id":"exact-1","keyword":"Claude Sonnet 4.6","title":"Claude Sonnet 4.6 正式发布：编程能力大幅提升","summary":"Anthropic 今天发布 claude sonnet 4.6，在 SWE-bench 上刷新纪录。","source":"websearch","expected":1,"note":"字面完全命中"}
+{"id":"variant-space-1","keyword":"Claude Sonnet 4.6","title":"Sonnet 4.6 实测：写代码比上一代稳","summary":"本文对比了 sonnet 4.6 与前代模型在真实项目中的表现。","source":"websearch","expected":1,"note":"词序不同"}
+{"id":"variant-noVer-1","keyword":"Claude Sonnet 4.6","title":"Claude Sonnet 编程能力评测","summary":"对 claude sonnet 系列做横向对比。","source":"websearch","expected":1,"note":"去掉版本号仍属同一对象"}
+{"id":"unrelated-openclaw-0","keyword":"Claude Sonnet 4.6","title":"openClaw 使用体验：一个开源的电脑代理工具","summary":"openClaw 支持接入多种大模型 API，本文分享安装与配置。","source":"websearch","expected":0,"note":"用户反馈的典型反例：同领域但与关键词无关"}
+{"id":"unrelated-otherProduct-0","keyword":"Claude Sonnet 4.6","title":"Claude Code 命令行工具更新到 2.0","summary":"本次更新新增了钩子与插件能力。","source":"websearch","expected":0,"note":"同厂商其他产品"}
+{"id":"unrelated-category-0","keyword":"Claude Sonnet 4.6","title":"2026 年最值得关注的 10 个 AI 大模型","summary":"盘点主流大模型，包括 GPT、Gemini、Llama 等。","source":"websearch","expected":0,"note":"只属同一大类"}
+{"id":"unrelated-domain-0","keyword":"DeepSeek","title":"国产算力 ETF 上市首日吸金","summary":"算力板块集体走强。","source":"websearch","expected":0,"note":"标题提到关键词但正文与主题无关（蹭词）"}
+{"id":"cn-name-1","keyword":"鱼皮的AI导航","title":"程序员鱼皮的AI导航新增了编程教程板块","summary":"鱼皮更新了他的 AI 导航站。","source":"websearch","expected":1,"note":"加修饰词、含助词"}
+{"id":"cn-reorder-1","keyword":"鱼皮的AI导航","title":"AI导航鱼皮 推荐几个好用的 AI 工具","summary":"来自鱼皮的推荐清单。","source":"bilibili","expected":1,"note":"词序调换"}
+{"id":"cn-unrelated-0","keyword":"鱼皮的AI导航","title":"某开源项目发布 2.0 版本","summary":"一个后端框架的更新日志。","source":"websearch","expected":0,"note":"完全无关"}
+{"id":"account-1","keyword":"老耗游戏UP主","title":"【实况】新版本开荒实录 第一期","summary":"本期视频带来第一手开荒体验。","source":"bilibili","expected":1,"pipeline":"account","note":"账号型关键词：由 mentions 过滤处理，闸门不介入"}
+{"id":"title-bait-0","keyword":"GPT-6","title":"GPT-6 向全球用户开放！软件行业迎来巨变","summary":"内容为营销号拼凑，无任何官方信息。","source":"websearch","expected":0,"aiOnly":true,"note":"标题党蹭词但无实质内容（需 AI 判假，本地闸门不具备此能力）"}
+{"id":"en-cn-mix-1","keyword":"OpenAI","title":"OpenAI 发布新一代推理模型","summary":"官方博客给出了评测数据。","source":"websearch","expected":1,"note":"英文关键词出现在中文标题"}
+{"id":"partial-0","keyword":"Claude Sonnet 4.6","title":"Sonnet 模型家族历史回顾","summary":"回顾 sonnet 系列从 1 到 4 的演进。","source":"websearch","expected":0,"note":"只命中部分实体，非同一对象的具体动态"}
+{"id":"version-diff-0","keyword":"Claude Sonnet 4.6","title":"Sonnet 4.5 的五个使用技巧","summary":"面向 4.5 版本的技巧合集。","source":"websearch","expected":0,"note":"版本不同"}
+{"id":"summary-only-1","keyword":"Nvidia H200","title":"新一代加速卡开放预订","summary":"NVIDIA H200 已开始接受企业预订。","source":"websearch","expected":1,"note":"仅摘要命中关键词"}
+{"id":"summary-only-0","keyword":"Nvidia H200","title":"数据中心散热方案对比","summary":"本文讨论液冷与风冷的成本。","source":"websearch","expected":0,"note":"标题摘要均未命中"}

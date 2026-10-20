@@ -1,0 +1,42 @@
+{
+  "skill_name": "hot-monitor",
+  "version": "2.0.0",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "帮我盯着 Claude Sonnet 4.6，最近有没有值得写的新动态？",
+      "expected_output": "执行 scan（或 signals），列出通过相关性闸门、带判定与证据的条目；每条附来源链接与时间；说明判定模式（无 Key 时为本地相关性判定 + unverified）；给出被丢弃的无关内容数量",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "AI 编程圈这两天有什么热点？给我前 10 条，按热度排。",
+      "expected_output": "执行 trend \"AI 编程\" --days 3 --limit 10，输出 S/A/B/C 分级榜单（标题/来源/时间/热度/链接），并提示哪些是多源印证、哪些是单一来源",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "我在群里看到一条消息：'GPT-6 向全球 12 亿用户开放！'，来源是 51CTO，这可信吗？和我监控的 GPT-6 有关系吗？",
+      "expected_output": "执行 judge \"GPT-6\" --title ... ，输出 verdict（预期 fake 或 unverified）、覆盖度、依据与理由；汇报时使用 verdicts.md 的话术，不得当事实陈述，并建议人工核实",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "我监控的关键词是「鱼皮的AI导航」，还有哪些等价叫法可以一起搜，免得漏掉内容？",
+      "expected_output": "执行 expand \"鱼皮的AI导航\"，列出本地规则变体（含程序员鱼皮的AI导航、AI导航鱼皮等）、建议检索词，并说明这些变体也会被用于相关性放行",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "你刚才判断的相关性准吗？有没有自检的办法？",
+      "expected_output": "执行 eval，输出用例数、准确率/精确率/召回率/F1 与误判清单；如有误判，逐条说明是漏杀还是误收",
+      "files": []
+    },
+    {
+      "id": 6,
+      "prompt": "我想监控 openclaw，但不要那些只在讲 Claude 的内容，怎么设置？",
+      "expected_output": "建议使用排除词/必须包含词参数：scan \"openclaw\" --exclude \"Claude\"（或相反方向的 --must），并说明闸门丢弃统计的含义",
+      "files": []
+    }
+  ]
+}
